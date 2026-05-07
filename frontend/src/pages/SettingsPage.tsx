@@ -1,0 +1,209 @@
+import { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
+import { Building2, UserCog } from 'lucide-react';
+import { meApi } from '../lib/api';
+import { Card } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
+import { useToast } from '../contexts/ToastContext';
+import { cn } from '../lib/utils';
+
+type Tab = 'company' | 'account';
+
+export default function SettingsPage() {
+  const { t } = useTranslation();
+  const [tab, setTab] = useState<Tab>('company');
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-slate-900">{t('settings.title')}</h1>
+        <p className="text-sm text-slate-500">{t('settings.subtitle')}</p>
+      </div>
+
+      <div className="flex gap-2 border-b border-slate-200">
+        <TabButton active={tab === 'company'} onClick={() => setTab('company')} icon={<Building2 className="h-4 w-4" />}>
+          {t('settings.tabCompany')}
+        </TabButton>
+        <TabButton active={tab === 'account'} onClick={() => setTab('account')} icon={<UserCog className="h-4 w-4" />}>
+          {t('settings.tabAccount')}
+        </TabButton>
+      </div>
+
+      {tab === 'company' ? <CompanyTab /> : <AccountTab />}
+    </div>
+  );
+}
+
+function TabButton({
+  active, onClick, icon, children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        'flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors -mb-px',
+        active ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'
+      )}
+    >
+      {icon}
+      {children}
+    </button>
+  );
+}
+
+function CompanyTab() {
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const { data, isLoading } = useQuery({ queryKey: ['me'], queryFn: () => meApi.get() });
+  const user = data?.data.user;
+
+  const [form, setForm] = useState({
+    companyName: '',
+    companyAddress: '',
+    companyVat: '',
+    companyEmail: '',
+    companyPhone: '',
+    companyLogoUrl: '',
+  });
+
+  useEffect(() => {
+    if (user) {
+      setForm({
+        companyName: user.companyName ?? '',
+        companyAddress: user.companyAddress ?? '',
+        companyVat: user.companyVat ?? '',
+        companyEmail: user.companyEmail ?? '',
+        companyPhone: user.companyPhone ?? '',
+        companyLogoUrl: user.companyLogoUrl ?? '',
+      });
+    }
+  }, [user]);
+
+  const save = useMutation({
+    mutationFn: () => meApi.updateCompany(form),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['me'] });
+      toast.success(t('settings.companySaved'));
+    },
+    onError: (err: { response?: { data?: { message?: string } } }) =>
+      toast.error(err.response?.data?.message ?? t('settings.errorSave')),
+  });
+
+  if (isLoading) {
+    return <div className="flex justify-center py-12"><div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" /></div>;
+  }
+
+  return (
+    <Card className="p-6">
+      <p className="text-sm text-slate-500 mb-5">{t('settings.companyDescription')}</p>
+      <form onSubmit={(e) => { e.preventDefault(); save.mutate(); }} className="space-y-4">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Input label={t('settings.companyName')} value={form.companyName} onChange={(e) => setForm({ ...form, companyName: e.target.value })} placeholder="Acme Lda." />
+          <Input label={t('settings.vat')} value={form.companyVat} onChange={(e) => setForm({ ...form, companyVat: e.target.value })} placeholder="PT123456789" />
+          <Input label={t('common.email')} type="email" value={form.companyEmail} onChange={(e) => setForm({ ...form, companyEmail: e.target.value })} placeholder="contato@empresa.pt" />
+          <Input label={t('common.phone')} value={form.companyPhone} onChange={(e) => setForm({ ...form, companyPhone: e.target.value })} placeholder="+351 ..." />
+        </div>
+        <Input label={t('common.address')} value={form.companyAddress} onChange={(e) => setForm({ ...form, companyAddress: e.target.value })} placeholder="Rua, número, código postal, cidade" />
+        <Input label={t('settings.logoUrl')} type="url" value={form.companyLogoUrl} onChange={(e) => setForm({ ...form, companyLogoUrl: e.target.value })} placeholder="https://..." />
+
+        {form.companyLogoUrl && (
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <p className="mb-2 text-xs font-medium text-slate-500">{t('settings.logoPreview')}</p>
+            <img src={form.companyLogoUrl} alt="Logo" className="h-12 object-contain" />
+          </div>
+        )}
+
+        <div className="flex justify-end pt-2">
+          <Button type="submit" loading={save.isPending}>{t('common.save')}</Button>
+        </div>
+      </form>
+    </Card>
+  );
+}
+
+function AccountTab() {
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const { data } = useQuery({ queryKey: ['me'], queryFn: () => meApi.get() });
+  const user = data?.data.user;
+
+  const [emailForm, setEmailForm] = useState({ email: '', currentPassword: '' });
+  const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', confirm: '' });
+
+  useEffect(() => {
+    if (user) setEmailForm((f) => ({ ...f, email: user.email }));
+  }, [user]);
+
+  const updateEmail = useMutation({
+    mutationFn: () => meApi.updateEmail(emailForm.email, emailForm.currentPassword),
+    onSuccess: ({ data }) => {
+      localStorage.setItem('token', data.token);
+      qc.invalidateQueries({ queryKey: ['me'] });
+      qc.invalidateQueries({ queryKey: ['auth-me'] });
+      setEmailForm({ email: data.user.email, currentPassword: '' });
+      toast.success(t('settings.emailUpdated'));
+    },
+    onError: (err: { response?: { data?: { message?: string } } }) =>
+      toast.error(err.response?.data?.message ?? t('settings.errorEmail')),
+  });
+
+  const updatePassword = useMutation({
+    mutationFn: () => meApi.updatePassword(pwForm.currentPassword, pwForm.newPassword),
+    onSuccess: () => {
+      setPwForm({ currentPassword: '', newPassword: '', confirm: '' });
+      toast.success(t('settings.passwordChanged'));
+    },
+    onError: (err: { response?: { data?: { message?: string } } }) =>
+      toast.error(err.response?.data?.message ?? t('settings.errorPassword')),
+  });
+
+  return (
+    <div className="space-y-5">
+      <Card className="p-6">
+        <h2 className="text-base font-semibold text-slate-900">{t('settings.emailSection')}</h2>
+        <p className="text-sm text-slate-500 mt-1 mb-5">{t('settings.emailDescription')}</p>
+        <form onSubmit={(e) => { e.preventDefault(); updateEmail.mutate(); }} className="space-y-4">
+          <Input label={t('settings.newEmail')} type="email" value={emailForm.email} onChange={(e) => setEmailForm({ ...emailForm, email: e.target.value })} required />
+          <Input label={t('settings.currentPassword')} type="password" value={emailForm.currentPassword} onChange={(e) => setEmailForm({ ...emailForm, currentPassword: e.target.value })} required />
+          <div className="flex justify-end">
+            <Button type="submit" loading={updateEmail.isPending}>{t('settings.changeEmail')}</Button>
+          </div>
+        </form>
+      </Card>
+
+      <Card className="p-6">
+        <h2 className="text-base font-semibold text-slate-900">{t('settings.passwordSection')}</h2>
+        <p className="text-sm text-slate-500 mt-1 mb-5">{t('settings.passwordDescription')}</p>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (pwForm.newPassword !== pwForm.confirm) {
+              toast.error(t('settings.passwordMismatch'));
+              return;
+            }
+            updatePassword.mutate();
+          }}
+          className="space-y-4"
+        >
+          <Input label={t('settings.currentPassword')} type="password" value={pwForm.currentPassword} onChange={(e) => setPwForm({ ...pwForm, currentPassword: e.target.value })} required />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Input label={t('settings.newPassword')} type="password" value={pwForm.newPassword} onChange={(e) => setPwForm({ ...pwForm, newPassword: e.target.value })} minLength={8} required />
+            <Input label={t('settings.confirmPassword')} type="password" value={pwForm.confirm} onChange={(e) => setPwForm({ ...pwForm, confirm: e.target.value })} minLength={8} required />
+          </div>
+          <div className="flex justify-end">
+            <Button type="submit" loading={updatePassword.isPending}>{t('settings.changePassword')}</Button>
+          </div>
+        </form>
+      </Card>
+    </div>
+  );
+}

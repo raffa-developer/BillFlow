@@ -1,0 +1,27 @@
+{
+  "env": {
+    "ECC_DISABLED_HOOKS": "pre:edit-write:gateguard-fact-force,pre:bash:gateguard-fact-force"
+  },
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\zpx\\\\Desktop\\\\Projetos\\\\Billing-System\" -Force | Format-Table Name, @{Name=\"Type\";Expression={if\\($_.PSIsContainer\\){\"DIR\"}else{\"FILE\"}}} -AutoSize)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\zpx\\\\Desktop\\\\Projetos\\\\Billing-System\\\\backend\" -Force | Format-Table Name, @{Name=\"Type\";Expression={if\\($_.PSIsContainer\\){\"DIR\"}else{\"FILE\"}}} -AutoSize)",
+      "Bash(npm create *)",
+      "Bash(npm install *)",
+      "Bash(npx tailwindcss *)",
+      "Bash(node -e \"const d=require\\('fs'\\).readFileSync\\('/dev/stdin','utf8'\\); console.log\\(JSON.parse\\(d\\).version\\)\")",
+      "Bash(node -e \"const p=require\\('C:/Users/zpx/Desktop/Projetos/Billing-System/frontend/node_modules/tailwindcss/package.json'\\); console.log\\(p.version\\)\")",
+      "PowerShell(& \"C:\\\\Program Files\\\\PostgreSQL\\\\18\\\\bin\\\\pg_ctl.exe\" reload -D \"C:\\\\Program Files\\\\PostgreSQL\\\\18\\\\data\" 2>&1)",
+      "PowerShell(& \"C:\\\\Program Files\\\\PostgreSQL\\\\18\\\\bin\\\\psql.exe\" -U postgres -c \"ALTER USER postgres WITH PASSWORD 'postgres';\" 2>&1)",
+      "PowerShell(Get-Content *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\zpx\\\\Desktop\\\\Projetos\\\\Billing-System\" -Recurse -Directory -Force)",
+      "Bash(Select-Object -First 30)",
+      "PowerShell(Get-Process *)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\zpx\\\\Desktop\\\\Projetos\\\\Billing-System\\\\frontend\\\\src\" -Recurse -File | ForEach-Object { $_.FullName.Replace\\(\"C:\\\\Users\\\\zpx\\\\Desktop\\\\Projetos\\\\Billing-System\\\\frontend\\\\src\\\\\", \"\"\\) })",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\zpx\\\\Desktop\\\\Projetos\\\\Billing-System\\\\backend\\\\src\" -Recurse -File | ForEach-Object { $_.FullName.Replace\\(\"C:\\\\Users\\\\zpx\\\\Desktop\\\\Projetos\\\\Billing-System\\\\backend\\\\src\\\\\", \"\"\\) })",
+      "Bash(npx tsc *)",
+      "Bash(npm run *)",
+      "Bash(curl -s http://localhost:5173)"
+    ]
+  }
+}

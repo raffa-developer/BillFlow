@@ -1,0 +1,116 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum InvoiceStatus {
+  PENDING
+  PAID
+  OVERDUE
+}
+
+enum DiscountType {
+  NONE
+  PERCENT
+  FIXED
+}
+
+model User {
+  id              Int       @id @default(autoincrement())
+  email           String    @unique
+  passwordHash    String
+  createdAt       DateTime  @default(now())
+  // Company profile (used on invoices/PDFs)
+  companyName     String?
+  companyAddress  String?
+  companyVat      String?
+  companyEmail    String?
+  companyPhone    String?
+  companyLogoUrl  String?
+  invoiceCounter  Int       @default(0)
+  clients         Client[]
+  products        Product[]
+  invoices        Invoice[]
+  passwordResets  PasswordResetToken[]
+}
+
+model Client {
+  id      Int     @id @default(autoincrement())
+  userId  Int
+  name    String
+  email   String?
+  phone   String?
+  address String?
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  invoices Invoice[]
+
+  @@index([userId])
+}
+
+model Product {
+  id          Int     @id @default(autoincrement())
+  userId      Int
+  name        String
+  price       Decimal @db.Decimal(12, 2)
+  description String?
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items       InvoiceItem[]
+
+  @@index([userId])
+}
+
+model Invoice {
+  id            Int           @id @default(autoincrement())
+  userId        Int
+  clientId      Int
+  number        String
+  subtotal      Decimal       @default(0) @db.Decimal(12, 2)
+  discountType  DiscountType  @default(NONE)
+  discountValue Decimal       @default(0) @db.Decimal(12, 2)
+  taxRate       Decimal       @default(0) @db.Decimal(5, 2)
+  taxAmount     Decimal       @default(0) @db.Decimal(12, 2)
+  total         Decimal       @default(0) @db.Decimal(12, 2)
+  status        InvoiceStatus @default(PENDING)
+  dateIssued    DateTime
+  dueDate       DateTime
+  notes         String?
+  publicToken   String?       @unique
+  sentAt        DateTime?
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  client        Client        @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  items         InvoiceItem[]
+
+  @@unique([userId, number])
+  @@index([userId])
+  @@index([clientId])
+}
+
+model InvoiceItem {
+  id          Int     @id @default(autoincrement())
+  invoiceId   Int
+  productId   Int?
+  description String
+  quantity    Int
+  price       Decimal @db.Decimal(12, 2)
+  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  product     Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([invoiceId])
+  @@index([productId])
+}
+
+model PasswordResetToken {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  token     String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}

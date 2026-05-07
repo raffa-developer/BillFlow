@@ -1,0 +1,24 @@
+@baseUrl = http://localhost:4000
+@token = replace_me
+
+### Register
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "password": "ChangeMe123"
+}
+
+### Login
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "password": "ChangeMe123"
+}
+
+### Me
+GET {{baseUrl}}/api/auth/me
+Authorization: Bearer {{token}}
