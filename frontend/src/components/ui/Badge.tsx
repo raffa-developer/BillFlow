@@ -7,9 +7,9 @@ interface BadgeProps {
 }
 
 const styles: Record<InvoiceStatus, { badge: string; dot: string }> = {
-  PAID:    { badge: 'bg-green-50 text-green-700 ring-1 ring-green-600/15',  dot: 'bg-green-500' },
-  PENDING: { badge: 'bg-amber-50 text-amber-700 ring-1 ring-amber-600/15', dot: 'bg-amber-400' },
-  OVERDUE: { badge: 'bg-red-50 text-red-700 ring-1 ring-red-600/15',       dot: 'bg-red-500'   },
+  PAID:    { badge: 'bg-green-50 text-green-700 ring-1 ring-green-600/15 dark:bg-green-900/30 dark:text-green-200 dark:ring-green-500/30',  dot: 'bg-green-500' },
+  PENDING: { badge: 'bg-amber-50 text-amber-700 ring-1 ring-amber-600/15 dark:bg-amber-900/30 dark:text-amber-200 dark:ring-amber-500/30', dot: 'bg-amber-400' },
+  OVERDUE: { badge: 'bg-red-50 text-red-700 ring-1 ring-red-600/15 dark:bg-red-900/30 dark:text-red-200 dark:ring-red-500/30',       dot: 'bg-red-500'   },
 };
 
 const labels: Record<InvoiceStatus, string> = {

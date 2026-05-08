@@ -1,4 +1,2 @@
-import { PrismaClient } from "@prisma/client";
-
-export const prisma = new PrismaClient();
-
+// Prisma removed — use pool from ./pool instead
+export {};

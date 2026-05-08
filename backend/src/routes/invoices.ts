@@ -1,9 +1,9 @@
 import { Router } from "express";
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
+import { pool } from "../db/pool";
 import { requireAuth } from "../middleware/auth";
 import { validateBody } from "../middleware/validate";
-import { prisma } from "../db/prisma";
 import { AppError } from "../utils/errors";
 import { parseIdParam } from "../utils/params";
 import { calculateInvoiceTotals, formatInvoiceNumber } from "../utils/invoiceMath";
@@ -33,345 +33,355 @@ const createInvoiceSchema = z.object({
   notes: z.string().max(2000).optional(),
 });
 
-const updateInvoiceSchema = z
-  .object({
-    status: z.enum(["PENDING", "PAID", "OVERDUE"]).optional(),
-    dueDate: z.string().datetime().optional(),
-    items: z.array(itemSchema).min(1).optional(),
-    discountType: discountTypeSchema.optional(),
-    discountValue: z.number().nonnegative().optional(),
-    taxRate: z.number().min(0).max(100).optional(),
-    notes: z.string().max(2000).optional(),
-  })
-  .refine((d) => Object.values(d).some((v) => v !== undefined), {
-    message: "At least one field is required",
-  });
+const updateInvoiceSchema = z.object({
+  status: z.enum(["PENDING", "PAID", "OVERDUE"]).optional(),
+  dueDate: z.string().datetime().optional(),
+  items: z.array(itemSchema).min(1).optional(),
+  discountType: discountTypeSchema.optional(),
+  discountValue: z.number().nonnegative().optional(),
+  taxRate: z.number().min(0).max(100).optional(),
+  notes: z.string().max(2000).optional(),
+}).refine((d) => Object.values(d).some((v) => v !== undefined), {
+  message: "At least one field is required",
+});
 
-// GET /api/invoices
+// ── helpers ────────────────────────────────────────────────────────────────
+
+async function fetchItems(invoiceId: number) {
+  const { rows } = await pool.query(
+    `SELECT ii.id, ii."invoiceId", ii."productId", ii.description, ii.quantity, ii.price,
+            CASE WHEN p.id IS NOT NULL
+                 THEN json_build_object('id', p.id, 'name', p.name)
+                 ELSE NULL END AS product
+     FROM "InvoiceItem" ii
+     LEFT JOIN "Product" p ON p.id = ii."productId"
+     WHERE ii."invoiceId" = $1
+     ORDER BY ii.id`,
+    [invoiceId]
+  );
+  return rows;
+}
+
+async function fetchItemsBulk(invoiceIds: number[]) {
+  if (invoiceIds.length === 0) return [];
+  const { rows } = await pool.query(
+    `SELECT id, "invoiceId", "productId", description, quantity, price
+     FROM "InvoiceItem" WHERE "invoiceId" = ANY($1::int[]) ORDER BY id`,
+    [invoiceIds]
+  );
+  return rows;
+}
+
+async function fetchInvoiceForPdf(id: number, byField: "id" | "publicToken", value: number | string) {
+  const col = byField === "id" ? "i.id" : `i."publicToken"`;
+  const { rows: [invoice] } = await pool.query(
+    `SELECT i.id, i."userId", i."clientId", i.number, i.subtotal, i."discountType",
+            i."discountValue", i."taxRate", i."taxAmount", i.total, i.status,
+            i."dateIssued", i."dueDate", i.notes, i."publicToken", i."sentAt",
+            row_to_json(c.*) AS client,
+            json_build_object(
+              'id', u.id, 'email', u.email,
+              'companyName', u."companyName", 'companyAddress', u."companyAddress",
+              'companyVat', u."companyVat", 'companyEmail', u."companyEmail",
+              'companyPhone', u."companyPhone", 'companyLogoUrl', u."companyLogoUrl"
+            ) AS user
+     FROM "Invoice" i
+     JOIN "Client" c ON c.id = i."clientId"
+     JOIN "User" u ON u.id = i."userId"
+     WHERE ${col} = $1`,
+    [value]
+  );
+  if (!invoice) return null;
+  invoice.items = await fetchItems(invoice.id);
+  return invoice;
+}
+
+// ── routes ─────────────────────────────────────────────────────────────────
+
 invoicesRouter.get("/", requireAuth, async (req, res, next) => {
   try {
     const { status } = req.query;
+    const userId = req.user!.id;
 
-    const where: Record<string, unknown> = { userId: req.user!.id };
-    if (status && ["PENDING", "PAID", "OVERDUE"].includes(status as string)) {
-      where.status = status;
+    const statusFilter = status && ["PENDING", "PAID", "OVERDUE"].includes(status as string)
+      ? ` AND i.status = $2::"InvoiceStatus"`
+      : "";
+
+    const params: unknown[] = [userId];
+    if (statusFilter) params.push(status);
+
+    const { rows: invoices } = await pool.query(
+      `SELECT i.id, i."userId", i."clientId", i.number, i.subtotal, i."discountType",
+              i."discountValue", i."taxRate", i."taxAmount", i.total, i.status,
+              i."dateIssued", i."dueDate", i.notes, i."publicToken", i."sentAt",
+              json_build_object('id', c.id, 'name', c.name, 'email', c.email) AS client
+       FROM "Invoice" i
+       JOIN "Client" c ON c.id = i."clientId"
+       WHERE i."userId" = $1${statusFilter}
+       ORDER BY i.id DESC`,
+      params
+    );
+
+    const ids = invoices.map((r: { id: number }) => r.id);
+    const items = await fetchItemsBulk(ids);
+    const itemsByInvoice = new Map<number, unknown[]>();
+    for (const item of items) {
+      const list = itemsByInvoice.get(item.invoiceId) ?? [];
+      list.push(item);
+      itemsByInvoice.set(item.invoiceId, list);
     }
 
-    const invoices = await prisma.invoice.findMany({
-      where,
-      include: {
-        client: { select: { id: true, name: true, email: true } },
-        items: true,
-      },
-      orderBy: { id: "desc" },
-    });
+    const result = invoices.map((inv: { id: number }) => ({
+      ...inv,
+      items: itemsByInvoice.get(inv.id) ?? [],
+    }));
 
-    res.json({ invoices });
+    res.json({ invoices: result });
   } catch (err) {
     next(err);
   }
 });
 
-// GET /api/invoices/:id
 invoicesRouter.get("/:id", requireAuth, async (req, res, next) => {
   try {
     const id = parseIdParam(req.params.id);
-
-    const invoice = await prisma.invoice.findFirst({
-      where: { id, userId: req.user!.id },
-      include: {
-        client: true,
-        items: {
-          include: {
-            product: { select: { id: true, name: true } },
-          },
-        },
-      },
-    });
-
+    const { rows: [invoice] } = await pool.query(
+      `SELECT i.id, i."userId", i."clientId", i.number, i.subtotal, i."discountType",
+              i."discountValue", i."taxRate", i."taxAmount", i.total, i.status,
+              i."dateIssued", i."dueDate", i.notes, i."publicToken", i."sentAt",
+              row_to_json(c.*) AS client
+       FROM "Invoice" i
+       JOIN "Client" c ON c.id = i."clientId"
+       WHERE i.id = $1 AND i."userId" = $2`,
+      [id, req.user!.id]
+    );
     if (!invoice) throw new AppError("Invoice not found", 404);
 
+    invoice.items = await fetchItems(id);
     res.json({ invoice });
   } catch (err) {
     next(err);
   }
 });
 
-// POST /api/invoices
-invoicesRouter.post(
-  "/",
-  requireAuth,
-  validateBody(createInvoiceSchema),
-  async (req, res, next) => {
-    try {
-      const body = req.body as z.infer<typeof createInvoiceSchema>;
-      const userId = req.user!.id;
-
-      const client = await prisma.client.findFirst({
-        where: { id: body.clientId, userId },
-      });
-      if (!client) throw new AppError("Client not found", 404);
-
-      const discountType = body.discountType ?? "NONE";
-      const discountValue = body.discountValue ?? 0;
-      const taxRate = body.taxRate ?? 0;
-
-      const { subtotal, taxAmount, total } = calculateInvoiceTotals({
-        items: body.items,
-        discountType,
-        discountValue,
-        taxRate,
-      });
-
-      const invoice = await prisma.$transaction(async (tx) => {
-        const updatedUser = await tx.user.update({
-          where: { id: userId },
-          data: { invoiceCounter: { increment: 1 } },
-          select: { invoiceCounter: true },
-        });
-        const number = formatInvoiceNumber(updatedUser.invoiceCounter);
-
-        return tx.invoice.create({
-          data: {
-            userId,
-            clientId: body.clientId,
-            number,
-            dateIssued: new Date(body.dateIssued),
-            dueDate: new Date(body.dueDate),
-            subtotal,
-            discountType,
-            discountValue,
-            taxRate,
-            taxAmount,
-            total,
-            notes: body.notes ?? null,
-            items: {
-              create: body.items.map((item) => ({
-                productId: item.productId ?? null,
-                description: item.description,
-                quantity: item.quantity,
-                price: item.price,
-              })),
-            },
-          },
-          include: {
-            client: { select: { id: true, name: true, email: true } },
-            items: true,
-          },
-        });
-      });
-
-      res.status(201).json({ invoice });
-    } catch (err) {
-      next(err);
-    }
-  }
-);
-
-// PUT /api/invoices/:id
-invoicesRouter.put(
-  "/:id",
-  requireAuth,
-  validateBody(updateInvoiceSchema),
-  async (req, res, next) => {
-    try {
-      const id = parseIdParam(req.params.id);
-      const userId = req.user!.id;
-      const body = req.body as z.infer<typeof updateInvoiceSchema>;
-
-      const existing = await prisma.invoice.findFirst({
-        where: { id, userId },
-        include: { items: true },
-      });
-      if (!existing) throw new AppError("Invoice not found", 404);
-
-      const invoice = await prisma.$transaction(async (tx) => {
-        const itemsUsed =
-          body.items ??
-          existing.items.map((it) => ({
-            quantity: it.quantity,
-            price: Number(it.price),
-            description: it.description,
-            productId: it.productId ?? undefined,
-          }));
-
-        const discountType = body.discountType ?? existing.discountType;
-        const discountValue =
-          body.discountValue ?? Number(existing.discountValue);
-        const taxRate = body.taxRate ?? Number(existing.taxRate);
-
-        const totals = calculateInvoiceTotals({
-          items: itemsUsed,
-          discountType,
-          discountValue,
-          taxRate,
-        });
-
-        if (body.items) {
-          await tx.invoiceItem.deleteMany({ where: { invoiceId: id } });
-          await tx.invoiceItem.createMany({
-            data: body.items.map((item) => ({
-              invoiceId: id,
-              productId: item.productId ?? null,
-              description: item.description,
-              quantity: item.quantity,
-              price: item.price,
-            })),
-          });
-        }
-
-        const recalc =
-          body.items !== undefined ||
-          body.discountType !== undefined ||
-          body.discountValue !== undefined ||
-          body.taxRate !== undefined;
-
-        return tx.invoice.update({
-          where: { id },
-          data: {
-            ...(body.status !== undefined ? { status: body.status } : {}),
-            ...(body.dueDate !== undefined
-              ? { dueDate: new Date(body.dueDate) }
-              : {}),
-            ...(body.notes !== undefined ? { notes: body.notes } : {}),
-            ...(body.discountType !== undefined ? { discountType } : {}),
-            ...(body.discountValue !== undefined ? { discountValue } : {}),
-            ...(body.taxRate !== undefined ? { taxRate } : {}),
-            ...(recalc
-              ? {
-                  subtotal: totals.subtotal,
-                  taxAmount: totals.taxAmount,
-                  total: totals.total,
-                }
-              : {}),
-          },
-          include: {
-            client: { select: { id: true, name: true, email: true } },
-            items: {
-              include: {
-                product: { select: { id: true, name: true } },
-              },
-            },
-          },
-        });
-      });
-
-      res.json({ invoice });
-    } catch (err) {
-      next(err);
-    }
-  }
-);
-
-// GET /api/invoices/:id/pdf — download PDF
-invoicesRouter.get("/:id/pdf", requireAuth, async (req, res, next) => {
+invoicesRouter.post("/", requireAuth, validateBody(createInvoiceSchema), async (req, res, next) => {
   try {
-    const id = parseIdParam(req.params.id);
-    const invoice = await prisma.invoice.findFirst({
-      where: { id, userId: req.user!.id },
-      include: { client: true, items: true, user: true },
-    });
-    if (!invoice) throw new AppError("Invoice not found", 404);
+    const body = req.body as z.infer<typeof createInvoiceSchema>;
+    const userId = req.user!.id;
 
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader(
-      "Content-Disposition",
-      `inline; filename="${invoice.number}.pdf"`
+    const { rows: [client] } = await pool.query(
+      `SELECT id FROM "Client" WHERE id = $1 AND "userId" = $2`,
+      [body.clientId, userId]
     );
-    const stream = renderInvoicePDF(invoice);
-    stream.pipe(res);
+    if (!client) throw new AppError("Client not found", 404);
+
+    const discountType = body.discountType ?? "NONE";
+    const discountValue = body.discountValue ?? 0;
+    const taxRate = body.taxRate ?? 0;
+    const { subtotal, taxAmount, total } = calculateInvoiceTotals({ items: body.items, discountType, discountValue, taxRate });
+
+    const db = await pool.connect();
+    let invoiceId: number;
+    try {
+      await db.query("BEGIN");
+
+      const { rows: [user] } = await db.query(
+        `UPDATE "User" SET "invoiceCounter" = "invoiceCounter" + 1 WHERE id = $1 RETURNING "invoiceCounter"`,
+        [userId]
+      );
+      const number = formatInvoiceNumber(user.invoiceCounter);
+
+      const { rows: [inv] } = await db.query(
+        `INSERT INTO "Invoice"
+           ("userId", "clientId", number, "dateIssued", "dueDate", subtotal,
+            "discountType", "discountValue", "taxRate", "taxAmount", total, notes)
+         VALUES ($1,$2,$3,$4,$5,$6,$7::\"DiscountType\",$8,$9,$10,$11,$12)
+         RETURNING id`,
+        [userId, body.clientId, number, new Date(body.dateIssued), new Date(body.dueDate),
+         subtotal, discountType, discountValue, taxRate, taxAmount, total, body.notes ?? null]
+      );
+      invoiceId = inv.id;
+
+      for (const item of body.items) {
+        await db.query(
+          `INSERT INTO "InvoiceItem" ("invoiceId", "productId", description, quantity, price)
+           VALUES ($1,$2,$3,$4,$5)`,
+          [invoiceId, item.productId ?? null, item.description, item.quantity, item.price]
+        );
+      }
+
+      await db.query("COMMIT");
+    } catch (err) {
+      await db.query("ROLLBACK");
+      throw err;
+    } finally {
+      db.release();
+    }
+
+    const { rows: [invoice] } = await pool.query(
+      `SELECT i.*, json_build_object('id', c.id, 'name', c.name, 'email', c.email) AS client
+       FROM "Invoice" i JOIN "Client" c ON c.id = i."clientId" WHERE i.id = $1`,
+      [invoiceId]
+    );
+    invoice.items = await fetchItems(invoiceId);
+    res.status(201).json({ invoice });
   } catch (err) {
     next(err);
   }
 });
 
-// POST /api/invoices/:id/send — email PDF + public link to client
+invoicesRouter.put("/:id", requireAuth, validateBody(updateInvoiceSchema), async (req, res, next) => {
+  try {
+    const id = parseIdParam(req.params.id);
+    const userId = req.user!.id;
+    const body = req.body as z.infer<typeof updateInvoiceSchema>;
+
+    const { rows: [existing] } = await pool.query(
+      `SELECT id, "discountType", "discountValue", "taxRate" FROM "Invoice" WHERE id = $1 AND "userId" = $2`,
+      [id, userId]
+    );
+    if (!existing) throw new AppError("Invoice not found", 404);
+
+    const db = await pool.connect();
+    try {
+      await db.query("BEGIN");
+
+      let currentItems = body.items;
+      if (!currentItems) {
+        const { rows } = await db.query(
+          `SELECT "productId", description, quantity, price FROM "InvoiceItem" WHERE "invoiceId" = $1`,
+          [id]
+        );
+        currentItems = rows.map((r) => ({ ...r, price: Number(r.price), productId: r.productId ?? undefined }));
+      }
+
+      const discountType = body.discountType ?? existing.discountType;
+      const discountValue = body.discountValue ?? Number(existing.discountValue);
+      const taxRate = body.taxRate ?? Number(existing.taxRate);
+      const recalc = body.items !== undefined || body.discountType !== undefined
+        || body.discountValue !== undefined || body.taxRate !== undefined;
+      const { subtotal, taxAmount, total } = calculateInvoiceTotals({ items: currentItems, discountType, discountValue, taxRate });
+
+      if (body.items) {
+        await db.query(`DELETE FROM "InvoiceItem" WHERE "invoiceId" = $1`, [id]);
+        for (const item of body.items) {
+          await db.query(
+            `INSERT INTO "InvoiceItem" ("invoiceId", "productId", description, quantity, price)
+             VALUES ($1,$2,$3,$4,$5)`,
+            [id, item.productId ?? null, item.description, item.quantity, item.price]
+          );
+        }
+      }
+
+      const sets: string[] = [];
+      const vals: unknown[] = [];
+      if (body.status !== undefined) { sets.push(`status = $${vals.push(body.status)}::"InvoiceStatus"`); }
+      if (body.dueDate !== undefined) { sets.push(`"dueDate" = $${vals.push(new Date(body.dueDate))}`); }
+      if (body.notes !== undefined) { sets.push(`notes = $${vals.push(body.notes)}`); }
+      if (body.discountType !== undefined) { sets.push(`"discountType" = $${vals.push(discountType)}::"DiscountType"`); }
+      if (body.discountValue !== undefined) { sets.push(`"discountValue" = $${vals.push(discountValue)}`); }
+      if (body.taxRate !== undefined) { sets.push(`"taxRate" = $${vals.push(taxRate)}`); }
+      if (recalc) {
+        sets.push(`subtotal = $${vals.push(subtotal)}`);
+        sets.push(`"taxAmount" = $${vals.push(taxAmount)}`);
+        sets.push(`total = $${vals.push(total)}`);
+      }
+      vals.push(id);
+      await db.query(`UPDATE "Invoice" SET ${sets.join(", ")} WHERE id = $${vals.length}`, vals);
+
+      await db.query("COMMIT");
+    } catch (err) {
+      await db.query("ROLLBACK");
+      throw err;
+    } finally {
+      db.release();
+    }
+
+    const { rows: [invoice] } = await pool.query(
+      `SELECT i.*, json_build_object('id', c.id, 'name', c.name, 'email', c.email) AS client
+       FROM "Invoice" i JOIN "Client" c ON c.id = i."clientId" WHERE i.id = $1`,
+      [id]
+    );
+    invoice.items = await fetchItems(id);
+    res.json({ invoice });
+  } catch (err) {
+    next(err);
+  }
+});
+
+invoicesRouter.get("/:id/pdf", requireAuth, async (req, res, next) => {
+  try {
+    const id = parseIdParam(req.params.id);
+    const invoice = await fetchInvoiceForPdf(id, "id", id);
+    if (!invoice || invoice.userId !== req.user!.id) throw new AppError("Invoice not found", 404);
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `inline; filename="${invoice.number}.pdf"`);
+    renderInvoicePDF(invoice).pipe(res);
+  } catch (err) {
+    next(err);
+  }
+});
+
 const sendSchema = z.object({
   to: z.string().email().optional(),
   message: z.string().max(2000).optional(),
 });
 
-invoicesRouter.post(
-  "/:id/send",
-  requireAuth,
-  validateBody(sendSchema),
-  async (req, res, next) => {
-    try {
-      const id = parseIdParam(req.params.id);
-      const body = req.body as z.infer<typeof sendSchema>;
-      const userId = req.user!.id;
+invoicesRouter.post("/:id/send", requireAuth, validateBody(sendSchema), async (req, res, next) => {
+  try {
+    const id = parseIdParam(req.params.id);
+    const body = req.body as z.infer<typeof sendSchema>;
 
-      const invoice = await prisma.invoice.findFirst({
-        where: { id, userId },
-        include: { client: true, items: true, user: true },
-      });
-      if (!invoice) throw new AppError("Invoice not found", 404);
+    let invoice = await fetchInvoiceForPdf(id, "id", id);
+    if (!invoice || invoice.userId !== req.user!.id) throw new AppError("Invoice not found", 404);
 
-      const recipient = body.to ?? invoice.client.email;
-      if (!recipient) throw new AppError("No recipient email", 400);
+    const recipient = body.to ?? invoice.client.email;
+    if (!recipient) throw new AppError("No recipient email", 400);
 
-      // Ensure public token exists
-      let publicToken = invoice.publicToken;
-      if (!publicToken) {
-        publicToken = randomBytes(24).toString("hex");
-        await prisma.invoice.update({
-          where: { id },
-          data: { publicToken },
-        });
-      }
-
-      // Buffer the PDF stream
-      const pdfBuffer: Buffer = await new Promise((resolve, reject) => {
-        const stream = renderInvoicePDF(invoice);
-        const chunks: Buffer[] = [];
-        stream.on("data", (c) => chunks.push(c as Buffer));
-        stream.on("end", () => resolve(Buffer.concat(chunks)));
-        stream.on("error", reject);
-      });
-
-      const publicUrl = `${env.APP_URL}/pay/${publicToken}`;
-      const company = invoice.user.companyName ?? "BillFlow";
-      const text =
-        (body.message ?? `Segue em anexo a fatura ${invoice.number}.`) +
-        `\n\nVisualizar online: ${publicUrl}\n\n— ${company}`;
-
-      const result = await sendEmail({
-        to: recipient,
-        subject: `Fatura ${invoice.number} — ${company}`,
-        text,
-        attachments: [
-          {
-            filename: `${invoice.number}.pdf`,
-            content: pdfBuffer,
-            contentType: "application/pdf",
-          },
-        ],
-      });
-
-      await prisma.invoice.update({
-        where: { id },
-        data: { sentAt: new Date() },
-      });
-
-      res.json({ ok: true, mocked: result.mocked, recipient, publicUrl });
-    } catch (err) {
-      next(err);
+    if (!invoice.publicToken) {
+      const publicToken = randomBytes(24).toString("hex");
+      await pool.query(`UPDATE "Invoice" SET "publicToken" = $1 WHERE id = $2`, [publicToken, id]);
+      invoice.publicToken = publicToken;
     }
-  }
-);
 
-// DELETE /api/invoices/:id
+    const pdfBuffer: Buffer = await new Promise((resolve, reject) => {
+      const stream = renderInvoicePDF(invoice);
+      const chunks: Buffer[] = [];
+      stream.on("data", (c) => chunks.push(c as Buffer));
+      stream.on("end", () => resolve(Buffer.concat(chunks)));
+      stream.on("error", reject);
+    });
+
+    const publicUrl = `${env.APP_URL}/pay/${invoice.publicToken}`;
+    const company = invoice.user.companyName ?? "BillFlow";
+    const text =
+      (body.message ?? `Segue em anexo a fatura ${invoice.number}.`) +
+      `\n\nVisualizar online: ${publicUrl}\n\n— ${company}`;
+
+    const result = await sendEmail({
+      to: recipient,
+      subject: `Fatura ${invoice.number} — ${company}`,
+      text,
+      attachments: [{ filename: `${invoice.number}.pdf`, content: pdfBuffer, contentType: "application/pdf" }],
+    });
+
+    await pool.query(`UPDATE "Invoice" SET "sentAt" = NOW() WHERE id = $1`, [id]);
+
+    res.json({ ok: true, mocked: result.mocked, recipient, publicUrl });
+  } catch (err) {
+    next(err);
+  }
+});
+
 invoicesRouter.delete("/:id", requireAuth, async (req, res, next) => {
   try {
     const id = parseIdParam(req.params.id);
-
-    const existing = await prisma.invoice.findFirst({
-      where: { id, userId: req.user!.id },
-    });
-    if (!existing) throw new AppError("Invoice not found", 404);
-
-    await prisma.invoice.delete({ where: { id } });
-
+    const { rowCount } = await pool.query(
+      `DELETE FROM "Invoice" WHERE id = $1 AND "userId" = $2`,
+      [id, req.user!.id]
+    );
+    if (!rowCount) throw new AppError("Invoice not found", 404);
     res.status(204).send();
   } catch (err) {
     next(err);

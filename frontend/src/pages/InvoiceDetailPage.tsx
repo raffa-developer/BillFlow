@@ -33,7 +33,11 @@ export default function InvoiceDetailPage() {
 
   const statusMutation = useMutation({
     mutationFn: (status: InvoiceStatus) => invoicesApi.update(parseInt(id!), { status }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['invoice', id] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['invoice', id] });
+      qc.invalidateQueries({ queryKey: ['invoices'] });
+      qc.invalidateQueries({ queryKey: ['dashboard'] });
+    },
   });
 
   const deleteMutation = useMutation({
@@ -49,6 +53,7 @@ export default function InvoiceDetailPage() {
       }),
     onSuccess: ({ data }) => {
       qc.invalidateQueries({ queryKey: ['invoice', id] });
+      qc.invalidateQueries({ queryKey: ['invoices'] });
       setSendOpen(false);
       toast.success(
         data.mocked
@@ -95,7 +100,7 @@ export default function InvoiceDetailPage() {
     );
   }
 
-  if (!invoice) return <div className="text-center py-20 text-slate-400">{t('invoiceDetail.notFound')}</div>;
+  if (!invoice) return <div className="text-center py-20 text-slate-400 dark:text-slate-500">{t('invoiceDetail.notFound')}</div>;
 
   const subtotal = parseFloat(invoice.subtotal);
   const discountValue = parseFloat(invoice.discountValue);
@@ -116,10 +121,10 @@ export default function InvoiceDetailPage() {
       <div className="flex items-start justify-between flex-wrap gap-4">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-slate-900">{invoice.number}</h1>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{invoice.number}</h1>
             <StatusBadge status={invoice.status} />
           </div>
-          <p className="text-sm text-slate-500 mt-1">
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             {t('invoiceDetail.issuedOn')} {formatDate(invoice.dateIssued)} · {t('invoiceDetail.dueOn')} {formatDate(invoice.dueDate)}
           </p>
         </div>
@@ -158,26 +163,26 @@ export default function InvoiceDetailPage() {
         <Card className="p-5">
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">{t('invoiceDetail.client')}</p>
           <p className="font-semibold text-slate-800 dark:text-slate-200">{invoice.client.name}</p>
-          {invoice.client.email && <p className="text-sm text-slate-400">{invoice.client.email}</p>}
+          {invoice.client.email && <p className="text-sm text-slate-400 dark:text-slate-500">{invoice.client.email}</p>}
         </Card>
         <Card className="p-5">
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">{t('invoiceDetail.summary')}</p>
           <div className="space-y-1 text-sm">
-            <div className="flex justify-between text-slate-600">
+            <div className="flex justify-between text-slate-600 dark:text-slate-400">
               <span>{t('common.subtotal')}</span><span>{formatCurrency(subtotal)}</span>
             </div>
             {discountAmount > 0 && (
-              <div className="flex justify-between text-slate-600">
+              <div className="flex justify-between text-slate-600 dark:text-slate-400">
                 <span>{t('common.discount')}{invoice.discountType === 'PERCENT' ? ` (${discountValue}%)` : ''}</span>
                 <span>-{formatCurrency(discountAmount)}</span>
               </div>
             )}
             {taxAmount > 0 && (
-              <div className="flex justify-between text-slate-600">
+              <div className="flex justify-between text-slate-600 dark:text-slate-400">
                 <span>{t('common.tax')} ({taxRate}%)</span><span>{formatCurrency(taxAmount)}</span>
               </div>
             )}
-            <div className="flex justify-between font-semibold text-slate-900 border-t border-slate-200 pt-1 mt-1">
+            <div className="flex justify-between font-semibold text-slate-900 dark:text-slate-100 border-t border-slate-200 dark:border-slate-800 pt-1 mt-1">
               <span>{t('common.total')}</span><span className="text-blue-600">{formatCurrency(invoice.total)}</span>
             </div>
           </div>
@@ -187,13 +192,13 @@ export default function InvoiceDetailPage() {
       {invoice.notes && (
         <Card className="p-5">
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">{t('common.notes')}</p>
-          <p className="text-sm text-slate-700 whitespace-pre-wrap">{invoice.notes}</p>
+          <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap">{invoice.notes}</p>
         </Card>
       )}
 
       <Card>
-        <div className="px-5 py-4 border-b border-slate-200">
-          <h2 className="text-sm font-semibold text-slate-700">{t('invoiceDetail.items')}</h2>
+        <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800">
+          <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">{t('invoiceDetail.items')}</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -209,8 +214,8 @@ export default function InvoiceDetailPage() {
               {invoice.items.map((item) => (
                 <tr key={item.id}>
                   <td className="px-5 py-3.5 text-slate-800 dark:text-slate-200">{item.description}</td>
-                  <td className="px-5 py-3.5 text-right text-slate-500">{item.quantity}</td>
-                  <td className="px-5 py-3.5 text-right text-slate-500">{formatCurrency(item.price)}</td>
+                  <td className="px-5 py-3.5 text-right text-slate-500 dark:text-slate-400">{item.quantity}</td>
+                  <td className="px-5 py-3.5 text-right text-slate-500 dark:text-slate-400">{formatCurrency(item.price)}</td>
                   <td className="px-5 py-3.5 text-right font-medium text-slate-700 dark:text-slate-300">{formatCurrency(parseFloat(item.price) * item.quantity)}</td>
                 </tr>
               ))}
@@ -229,7 +234,7 @@ export default function InvoiceDetailPage() {
 
       <Modal open={sendOpen} onClose={() => setSendOpen(false)} title={t('invoiceDetail.sendTitle')}>
         <div className="space-y-4">
-          <p className="text-sm text-slate-500">{t('invoiceDetail.sendDescription')}</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">{t('invoiceDetail.sendDescription')}</p>
           <Input
             label={t('invoiceDetail.recipientEmail')}
             type="email"
@@ -238,14 +243,14 @@ export default function InvoiceDetailPage() {
             placeholder={invoice.client.email ?? 'email@exemplo.com'}
           />
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
               {t('invoiceDetail.messageOptional')}
             </label>
             <textarea
               value={sendMessage}
               onChange={(e) => setSendMessage(e.target.value)}
               placeholder={t('invoiceDetail.messagePlaceholder')}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500"
               rows={3}
             />
           </div>

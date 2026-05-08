@@ -1,19 +1,18 @@
 import { Router } from "express";
 import { z } from "zod";
-import { prisma } from "../db/prisma";
+import { pool } from "../db/pool";
 import { requireAuth } from "../middleware/auth";
 import { validateBody } from "../middleware/validate";
 import { AppError } from "../utils/errors";
 import { parseIdParam } from "../utils/params";
 
 export const productsRouter = Router();
-
 productsRouter.use(requireAuth);
 
 const createProductSchema = z.object({
   name: z.string().min(1).max(200),
   price: z.coerce.number().positive(),
-  description: z.string().min(1).max(500).optional()
+  description: z.string().min(1).max(500).optional(),
 });
 
 const updateProductSchema = createProductSchema.partial().refine(
@@ -21,19 +20,16 @@ const updateProductSchema = createProductSchema.partial().refine(
   { message: "No fields to update" }
 );
 
+const PRODUCT_COLS = ["name", "price", "description"] as const;
+
 productsRouter.get("/", async (req, res, next) => {
   try {
-    const userId = req.user?.id;
-    if (!userId) {
-      throw new AppError("Unauthorized", 401);
-    }
-
-    const products = await prisma.product.findMany({
-      where: { userId },
-      orderBy: { id: "desc" }
-    });
-
-    return res.json({ products });
+    const { rows } = await pool.query(
+      `SELECT id, "userId", name, price, description
+       FROM "Product" WHERE "userId" = $1 ORDER BY id DESC`,
+      [req.user!.id]
+    );
+    return res.json({ products: rows });
   } catch (err) {
     return next(err);
   }
@@ -41,18 +37,13 @@ productsRouter.get("/", async (req, res, next) => {
 
 productsRouter.post("/", validateBody(createProductSchema), async (req, res, next) => {
   try {
-    const userId = req.user?.id;
-    if (!userId) {
-      throw new AppError("Unauthorized", 401);
-    }
-
-    const product = await prisma.product.create({
-      data: {
-        ...req.body,
-        userId
-      }
-    });
-
+    const body = req.body as z.infer<typeof createProductSchema>;
+    const { rows: [product] } = await pool.query(
+      `INSERT INTO "Product" ("userId", name, price, description)
+       VALUES ($1, $2, $3, $4)
+       RETURNING *`,
+      [req.user!.id, body.name, body.price, body.description ?? null]
+    );
     return res.status(201).json({ product });
   } catch (err) {
     return next(err);
@@ -61,25 +52,26 @@ productsRouter.post("/", validateBody(createProductSchema), async (req, res, nex
 
 productsRouter.put("/:id", validateBody(updateProductSchema), async (req, res, next) => {
   try {
-    const userId = req.user?.id;
-    if (!userId) {
-      throw new AppError("Unauthorized", 401);
-    }
-
     const id = parseIdParam(req.params.id);
+    const userId = req.user!.id;
+    const body = req.body as z.infer<typeof updateProductSchema>;
 
-    const existing = await prisma.product.findFirst({
-      where: { id, userId }
-    });
-
-    if (!existing) {
-      throw new AppError("Product not found", 404);
+    const fields: string[] = [];
+    const values: unknown[] = [];
+    for (const col of PRODUCT_COLS) {
+      if (col in body) { fields.push(col); values.push(body[col]); }
     }
+    if (fields.length === 0) throw new AppError("No fields to update", 400);
 
-    const product = await prisma.product.update({
-      where: { id },
-      data: req.body
-    });
+    const set = fields.map((f, i) => `"${f}" = $${i + 1}`).join(", ");
+    values.push(id, userId);
+    const { rows: [product] } = await pool.query(
+      `UPDATE "Product" SET ${set}
+       WHERE id = $${fields.length + 1} AND "userId" = $${fields.length + 2}
+       RETURNING *`,
+      values
+    );
+    if (!product) throw new AppError("Product not found", 404);
 
     return res.json({ product });
   } catch (err) {
@@ -89,23 +81,12 @@ productsRouter.put("/:id", validateBody(updateProductSchema), async (req, res, n
 
 productsRouter.delete("/:id", async (req, res, next) => {
   try {
-    const userId = req.user?.id;
-    if (!userId) {
-      throw new AppError("Unauthorized", 401);
-    }
-
     const id = parseIdParam(req.params.id);
-
-    const existing = await prisma.product.findFirst({
-      where: { id, userId }
-    });
-
-    if (!existing) {
-      throw new AppError("Product not found", 404);
-    }
-
-    await prisma.product.delete({ where: { id } });
-
+    const { rowCount } = await pool.query(
+      `DELETE FROM "Product" WHERE id = $1 AND "userId" = $2`,
+      [id, req.user!.id]
+    );
+    if (!rowCount) throw new AppError("Product not found", 404);
     return res.status(204).send();
   } catch (err) {
     return next(err);

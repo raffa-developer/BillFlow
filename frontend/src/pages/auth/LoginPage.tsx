@@ -65,21 +65,21 @@ export default function LoginPage() {
       </div>
 
       {/* Right panel */}
-      <div className="flex flex-1 flex-col items-center justify-center bg-slate-50 px-6 py-12">
+      <div className="flex flex-1 flex-col items-center justify-center bg-slate-50 dark:bg-slate-950 px-6 py-12">
         <div className="mb-8 flex flex-col items-center gap-3 lg:hidden">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-600">
             <Receipt className="h-6 w-6 text-white" />
           </div>
-          <span className="text-2xl font-bold text-slate-900 tracking-tight">BillFlow</span>
+          <span className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">BillFlow</span>
         </div>
 
         <div className="w-full max-w-sm">
           <div className="mb-8">
-            <h1 className="text-2xl font-bold text-slate-900">{t('auth.login.title')}</h1>
-            <p className="mt-1 text-sm text-slate-500">{t('auth.login.subtitle')}</p>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{t('auth.login.title')}</h1>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t('auth.login.subtitle')}</p>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-7 shadow-sm">
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-7 shadow-sm">
             <form onSubmit={handleSubmit} className="space-y-4">
               <Input
                 label={t('common.email')}
@@ -100,7 +100,7 @@ export default function LoginPage() {
               />
 
               {error && (
-                <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5">
+                <div className="flex items-start gap-2 rounded-lg border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/40 px-3 py-2.5">
                   <span className="mt-0.5 shrink-0 text-red-500">
                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3m0 3h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
@@ -116,12 +116,12 @@ export default function LoginPage() {
             </form>
 
             <div className="mt-4 text-center">
-              <Link to="/forgot" className="text-xs text-slate-500 hover:text-blue-600 hover:underline">
+              <Link to="/forgot" className="text-xs text-slate-500 dark:text-slate-400 hover:text-blue-600 hover:underline">
                 {t('auth.login.forgotPassword')}
               </Link>
             </div>
 
-            <p className="mt-5 text-center text-sm text-slate-500">
+            <p className="mt-5 text-center text-sm text-slate-500 dark:text-slate-400">
               {t('auth.login.noAccount')}{' '}
               <Link to="/register" className="font-medium text-blue-600 hover:text-blue-700 hover:underline">
                 {t('auth.login.createAccount')}

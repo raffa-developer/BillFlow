@@ -21,7 +21,12 @@
       "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\zpx\\\\Desktop\\\\Projetos\\\\Billing-System\\\\backend\\\\src\" -Recurse -File | ForEach-Object { $_.FullName.Replace\\(\"C:\\\\Users\\\\zpx\\\\Desktop\\\\Projetos\\\\Billing-System\\\\backend\\\\src\\\\\", \"\"\\) })",
       "Bash(npx tsc *)",
       "Bash(npm run *)",
-      "Bash(curl -s http://localhost:5173)"
+      "Bash(curl -s http://localhost:5173)",
+      "PowerShell(Get-NetTCPConnection *)",
+      "Bash(node -e \"require\\('jspdf'\\); require\\('xlsx'\\); console.log\\('ok'\\)\")",
+      "Bash(node -e \"import\\('jspdf-autotable'\\).then\\(\\(\\) => console.log\\('autotable ok'\\)\\).catch\\(e => console.log\\(e.message\\)\\)\")",
+      "Bash(node -e \"const l = require\\('./node_modules/lucide-react/dist/cjs/lucide-react.js'\\); console.log\\('Table2:', !!l.Table2, 'Printer:', !!l.Printer, 'FileDown:', !!l.FileDown, 'ChevronDown:', !!l.ChevronDown, 'Sheet:', !!l.Sheet\\)\")",
+      "Bash(node -e ' *)"
     ]
   }
 }

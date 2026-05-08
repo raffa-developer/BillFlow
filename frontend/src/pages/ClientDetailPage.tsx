@@ -42,7 +42,7 @@ export default function ClientDetailPage() {
 
   if (!client) {
     return (
-      <div className="text-center py-20 text-slate-400">
+      <div className="text-center py-20 text-slate-400 dark:text-slate-500">
         <p>{t('clientDetail.notFound')}</p>
         <Link to="/clients" className="text-sm text-blue-600 hover:underline mt-2 inline-block">
           {t('clientDetail.backToClients')}
@@ -62,63 +62,63 @@ export default function ClientDetailPage() {
       </div>
 
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">{client.name}</h1>
-        <p className="text-sm text-slate-500 mt-0.5">
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{client.name}</h1>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
           {t('clientDetail.invoices', { count: invoices.length })}
         </p>
       </div>
 
       <Card className="p-5">
-        <h2 className="text-sm font-semibold text-slate-700 mb-4">{t('clientDetail.contactInfo')}</h2>
+        <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">{t('clientDetail.contactInfo')}</h2>
         <div className="space-y-2.5">
           {client.email && (
-            <div className="flex items-center gap-2.5 text-sm text-slate-600">
-              <Mail className="h-4 w-4 text-slate-400 shrink-0" />
+            <div className="flex items-center gap-2.5 text-sm text-slate-600 dark:text-slate-400">
+              <Mail className="h-4 w-4 text-slate-400 dark:text-slate-500 shrink-0" />
               <a href={`mailto:${client.email}`} className="hover:text-blue-600 hover:underline">{client.email}</a>
             </div>
           )}
           {client.phone && (
-            <div className="flex items-center gap-2.5 text-sm text-slate-600">
-              <Phone className="h-4 w-4 text-slate-400 shrink-0" />
+            <div className="flex items-center gap-2.5 text-sm text-slate-600 dark:text-slate-400">
+              <Phone className="h-4 w-4 text-slate-400 dark:text-slate-500 shrink-0" />
               <span>{client.phone}</span>
             </div>
           )}
           {client.address && (
-            <div className="flex items-start gap-2.5 text-sm text-slate-600">
-              <MapPin className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
+            <div className="flex items-start gap-2.5 text-sm text-slate-600 dark:text-slate-400">
+              <MapPin className="h-4 w-4 text-slate-400 dark:text-slate-500 shrink-0 mt-0.5" />
               <span>{client.address}</span>
             </div>
           )}
           {!client.email && !client.phone && !client.address && (
-            <p className="text-sm text-slate-400">{t('clientDetail.noContact')}</p>
+            <p className="text-sm text-slate-400 dark:text-slate-500">{t('clientDetail.noContact')}</p>
           )}
         </div>
       </Card>
 
       <div className="grid grid-cols-3 gap-4">
         <Card className="p-4 text-center">
-          <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">{t('clientDetail.totalBilled')}</p>
-          <p className="text-xl font-bold text-slate-900 mt-1">{formatAmount(totalInvoiced)}</p>
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">{t('clientDetail.totalBilled')}</p>
+          <p className="text-xl font-bold text-slate-900 dark:text-slate-100 mt-1">{formatAmount(totalInvoiced)}</p>
         </Card>
         <Card className="p-4 text-center">
-          <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">{t('clientDetail.paid')}</p>
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">{t('clientDetail.paid')}</p>
           <p className="text-xl font-bold text-green-600 mt-1">{formatAmount(totalPaid)}</p>
         </Card>
         <Card className="p-4 text-center">
-          <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">{t('clientDetail.outstanding')}</p>
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">{t('clientDetail.outstanding')}</p>
           <p className="text-xl font-bold text-amber-500 mt-1">{formatAmount(totalPending)}</p>
         </Card>
       </div>
 
       <Card>
-        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-          <h2 className="text-sm font-semibold text-slate-700">{t('clientDetail.invoicesSection')}</h2>
+        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 px-5 py-4">
+          <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">{t('clientDetail.invoicesSection')}</h2>
           <Link to="/invoices/new">
             <Button size="sm">{t('clientDetail.newInvoice')}</Button>
           </Link>
         </div>
         {invoices.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-12 text-slate-400">
+          <div className="flex flex-col items-center gap-2 py-12 text-slate-400 dark:text-slate-500">
             <FileText className="h-8 w-8" />
             <p className="text-sm">{t('clientDetail.noInvoices')}</p>
           </div>
@@ -126,7 +126,7 @@ export default function ClientDetailPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-100">
+                <tr className="border-b border-slate-100 dark:border-slate-800">
                   <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">#</th>
                   <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('invoices.colIssued')}</th>
                   <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('invoices.colDue')}</th>
@@ -134,16 +134,16 @@ export default function ClientDetailPage() {
                   <th className="px-5 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('common.total')}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-50">
+              <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
                 {invoices.map((inv) => (
-                  <tr key={inv.id} className="hover:bg-slate-50 transition-colors">
+                  <tr key={inv.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
                     <td className="px-5 py-3.5">
                       <Link to={`/invoices/${inv.id}`} className="font-mono text-xs text-blue-600 hover:underline">{inv.number}</Link>
                     </td>
-                    <td className="px-5 py-3.5 text-slate-500">{formatDate(inv.dateIssued)}</td>
-                    <td className="px-5 py-3.5 text-slate-500">{formatDate(inv.dueDate)}</td>
+                    <td className="px-5 py-3.5 text-slate-500 dark:text-slate-400">{formatDate(inv.dateIssued)}</td>
+                    <td className="px-5 py-3.5 text-slate-500 dark:text-slate-400">{formatDate(inv.dueDate)}</td>
                     <td className="px-5 py-3.5"><StatusBadge status={inv.status} /></td>
-                    <td className="px-5 py-3.5 text-right font-semibold text-slate-700">{formatCurrency(inv.total)}</td>
+                    <td className="px-5 py-3.5 text-right font-semibold text-slate-700 dark:text-slate-300">{formatCurrency(inv.total)}</td>
                   </tr>
                 ))}
               </tbody>

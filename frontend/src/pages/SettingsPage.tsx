@@ -18,11 +18,11 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">{t('settings.title')}</h1>
-        <p className="text-sm text-slate-500">{t('settings.subtitle')}</p>
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{t('settings.title')}</h1>
+        <p className="text-sm text-slate-500 dark:text-slate-400">{t('settings.subtitle')}</p>
       </div>
 
-      <div className="flex gap-2 border-b border-slate-200">
+      <div className="flex gap-2 border-b border-slate-200 dark:border-slate-800">
         <TabButton active={tab === 'company'} onClick={() => setTab('company')} icon={<Building2 className="h-4 w-4" />}>
           {t('settings.tabCompany')}
         </TabButton>
@@ -49,7 +49,9 @@ function TabButton({
       onClick={onClick}
       className={cn(
         'flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors -mb-px',
-        active ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'
+        active
+          ? 'border-blue-600 text-blue-600'
+          : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
       )}
     >
       {icon}
@@ -103,7 +105,7 @@ function CompanyTab() {
 
   return (
     <Card className="p-6">
-      <p className="text-sm text-slate-500 mb-5">{t('settings.companyDescription')}</p>
+      <p className="text-sm text-slate-500 dark:text-slate-400 mb-5">{t('settings.companyDescription')}</p>
       <form onSubmit={(e) => { e.preventDefault(); save.mutate(); }} className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <Input label={t('settings.companyName')} value={form.companyName} onChange={(e) => setForm({ ...form, companyName: e.target.value })} placeholder="Acme Lda." />
@@ -115,8 +117,8 @@ function CompanyTab() {
         <Input label={t('settings.logoUrl')} type="url" value={form.companyLogoUrl} onChange={(e) => setForm({ ...form, companyLogoUrl: e.target.value })} placeholder="https://..." />
 
         {form.companyLogoUrl && (
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-            <p className="mb-2 text-xs font-medium text-slate-500">{t('settings.logoPreview')}</p>
+          <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 p-3">
+            <p className="mb-2 text-xs font-medium text-slate-500 dark:text-slate-400">{t('settings.logoPreview')}</p>
             <img src={form.companyLogoUrl} alt="Logo" className="h-12 object-contain" />
           </div>
         )}
@@ -169,8 +171,8 @@ function AccountTab() {
   return (
     <div className="space-y-5">
       <Card className="p-6">
-        <h2 className="text-base font-semibold text-slate-900">{t('settings.emailSection')}</h2>
-        <p className="text-sm text-slate-500 mt-1 mb-5">{t('settings.emailDescription')}</p>
+        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">{t('settings.emailSection')}</h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 mb-5">{t('settings.emailDescription')}</p>
         <form onSubmit={(e) => { e.preventDefault(); updateEmail.mutate(); }} className="space-y-4">
           <Input label={t('settings.newEmail')} type="email" value={emailForm.email} onChange={(e) => setEmailForm({ ...emailForm, email: e.target.value })} required />
           <Input label={t('settings.currentPassword')} type="password" value={emailForm.currentPassword} onChange={(e) => setEmailForm({ ...emailForm, currentPassword: e.target.value })} required />
@@ -181,8 +183,8 @@ function AccountTab() {
       </Card>
 
       <Card className="p-6">
-        <h2 className="text-base font-semibold text-slate-900">{t('settings.passwordSection')}</h2>
-        <p className="text-sm text-slate-500 mt-1 mb-5">{t('settings.passwordDescription')}</p>
+        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">{t('settings.passwordSection')}</h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 mb-5">{t('settings.passwordDescription')}</p>
         <form
           onSubmit={(e) => {
             e.preventDefault();

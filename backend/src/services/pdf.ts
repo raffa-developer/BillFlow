@@ -1,10 +1,28 @@
 import PDFDocument from "pdfkit";
 import { Readable } from "node:stream";
-import type { Prisma } from "@prisma/client";
 
-type InvoiceWithRelations = Prisma.InvoiceGetPayload<{
-  include: { client: true; items: true; user: true };
-}>;
+interface InvoiceItem {
+  id: number; invoiceId: number; productId: number | null;
+  description: string; quantity: number; price: number;
+}
+interface InvoiceClient {
+  id: number; name: string; email: string | null;
+  phone: string | null; address: string | null;
+}
+interface InvoiceUser {
+  id: number; email: string; companyName: string | null;
+  companyAddress: string | null; companyVat: string | null;
+  companyEmail: string | null; companyPhone: string | null;
+  companyLogoUrl: string | null;
+}
+interface InvoiceWithRelations {
+  id: number; number: string; status: string;
+  dateIssued: Date; dueDate: Date;
+  subtotal: number; discountType: string; discountValue: number;
+  taxRate: number; taxAmount: number; total: number;
+  notes: string | null; publicToken: string | null;
+  client: InvoiceClient; user: InvoiceUser; items: InvoiceItem[];
+}
 
 const PRIMARY = "#2563eb";
 const TEXT = "#0f172a";
@@ -62,8 +80,8 @@ export function renderInvoicePDF(invoice: InvoiceWithRelations): Readable {
     .text(`Vencimento: ${fmtDate(invoice.dueDate)}`, 350, 116, { align: "right", width: 195 });
 
   // Status pill
-  const statusLabel = { PENDING: "PENDENTE", PAID: "PAGA", OVERDUE: "VENCIDA" }[invoice.status];
-  const statusColor = { PENDING: "#eab308", PAID: "#16a34a", OVERDUE: "#dc2626" }[invoice.status];
+  const statusLabel = ({ PENDING: "PENDENTE", PAID: "PAGA", OVERDUE: "VENCIDA" } as Record<string, string>)[invoice.status] ?? invoice.status;
+  const statusColor = ({ PENDING: "#eab308", PAID: "#16a34a", OVERDUE: "#dc2626" } as Record<string, string>)[invoice.status] ?? "#64748b";
   doc
     .roundedRect(465, 132, 80, 18, 4)
     .fill(statusColor)

@@ -1,12 +1,12 @@
 import { Router } from "express";
-import { prisma } from "../db/prisma";
+import { pool } from "../db/pool";
 
 export const healthRouter = Router();
 
 healthRouter.get("/", async (_req, res) => {
   let db: "ok" | "down" = "ok";
   try {
-    await prisma.$queryRaw`SELECT 1`;
+    await pool.query("SELECT 1");
   } catch {
     db = "down";
   }

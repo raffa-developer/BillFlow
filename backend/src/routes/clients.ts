@@ -1,20 +1,19 @@
 import { Router } from "express";
 import { z } from "zod";
-import { prisma } from "../db/prisma";
+import { pool } from "../db/pool";
 import { requireAuth } from "../middleware/auth";
 import { validateBody } from "../middleware/validate";
 import { AppError } from "../utils/errors";
 import { parseIdParam } from "../utils/params";
 
 export const clientsRouter = Router();
-
 clientsRouter.use(requireAuth);
 
 const createClientSchema = z.object({
   name: z.string().min(1).max(200),
   email: z.string().email().optional(),
   phone: z.string().min(3).max(50).optional(),
-  address: z.string().min(1).max(500).optional()
+  address: z.string().min(1).max(500).optional(),
 });
 
 const updateClientSchema = createClientSchema.partial().refine(
@@ -22,19 +21,16 @@ const updateClientSchema = createClientSchema.partial().refine(
   { message: "No fields to update" }
 );
 
+const CLIENT_COLS = ["name", "email", "phone", "address"] as const;
+
 clientsRouter.get("/", async (req, res, next) => {
   try {
-    const userId = req.user?.id;
-    if (!userId) {
-      throw new AppError("Unauthorized", 401);
-    }
-
-    const clients = await prisma.client.findMany({
-      where: { userId },
-      orderBy: { id: "desc" }
-    });
-
-    return res.json({ clients });
+    const { rows } = await pool.query(
+      `SELECT id, "userId", name, email, phone, address
+       FROM "Client" WHERE "userId" = $1 ORDER BY id DESC`,
+      [req.user!.id]
+    );
+    return res.json({ clients: rows });
   } catch (err) {
     return next(err);
   }
@@ -42,18 +38,13 @@ clientsRouter.get("/", async (req, res, next) => {
 
 clientsRouter.post("/", validateBody(createClientSchema), async (req, res, next) => {
   try {
-    const userId = req.user?.id;
-    if (!userId) {
-      throw new AppError("Unauthorized", 401);
-    }
-
-    const client = await prisma.client.create({
-      data: {
-        ...req.body,
-        userId
-      }
-    });
-
+    const body = req.body as z.infer<typeof createClientSchema>;
+    const { rows: [client] } = await pool.query(
+      `INSERT INTO "Client" ("userId", name, email, phone, address)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING *`,
+      [req.user!.id, body.name, body.email ?? null, body.phone ?? null, body.address ?? null]
+    );
     return res.status(201).json({ client });
   } catch (err) {
     return next(err);
@@ -62,25 +53,26 @@ clientsRouter.post("/", validateBody(createClientSchema), async (req, res, next)
 
 clientsRouter.put("/:id", validateBody(updateClientSchema), async (req, res, next) => {
   try {
-    const userId = req.user?.id;
-    if (!userId) {
-      throw new AppError("Unauthorized", 401);
-    }
-
     const id = parseIdParam(req.params.id);
+    const userId = req.user!.id;
+    const body = req.body as z.infer<typeof updateClientSchema>;
 
-    const existing = await prisma.client.findFirst({
-      where: { id, userId }
-    });
-
-    if (!existing) {
-      throw new AppError("Client not found", 404);
+    const fields: string[] = [];
+    const values: unknown[] = [];
+    for (const col of CLIENT_COLS) {
+      if (col in body) { fields.push(col); values.push(body[col]); }
     }
+    if (fields.length === 0) throw new AppError("No fields to update", 400);
 
-    const client = await prisma.client.update({
-      where: { id },
-      data: req.body
-    });
+    const set = fields.map((f, i) => `"${f}" = $${i + 1}`).join(", ");
+    values.push(id, userId);
+    const { rows: [client] } = await pool.query(
+      `UPDATE "Client" SET ${set}
+       WHERE id = $${fields.length + 1} AND "userId" = $${fields.length + 2}
+       RETURNING *`,
+      values
+    );
+    if (!client) throw new AppError("Client not found", 404);
 
     return res.json({ client });
   } catch (err) {
@@ -90,23 +82,12 @@ clientsRouter.put("/:id", validateBody(updateClientSchema), async (req, res, nex
 
 clientsRouter.delete("/:id", async (req, res, next) => {
   try {
-    const userId = req.user?.id;
-    if (!userId) {
-      throw new AppError("Unauthorized", 401);
-    }
-
     const id = parseIdParam(req.params.id);
-
-    const existing = await prisma.client.findFirst({
-      where: { id, userId }
-    });
-
-    if (!existing) {
-      throw new AppError("Client not found", 404);
-    }
-
-    await prisma.client.delete({ where: { id } });
-
+    const { rowCount } = await pool.query(
+      `DELETE FROM "Client" WHERE id = $1 AND "userId" = $2`,
+      [id, req.user!.id]
+    );
+    if (!rowCount) throw new AppError("Client not found", 404);
     return res.status(204).send();
   } catch (err) {
     return next(err);

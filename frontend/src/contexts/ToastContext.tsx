@@ -136,10 +136,13 @@ function ToastItem({ toast, onDismiss }: ToastItemProps) {
         display: 'flex',
         alignItems: 'center',
         gap: '0.75rem',
-        backgroundColor: '#ffffff',
+        backgroundColor: 'var(--toast-bg)',
         borderRadius: '0.5rem',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+        boxShadow: 'var(--toast-shadow)',
         borderLeft: `4px solid ${BORDER_COLOR[toast.type]}`,
+        borderTop: '1px solid var(--toast-border)',
+        borderRight: '1px solid var(--toast-border)',
+        borderBottom: '1px solid var(--toast-border)',
         padding: '0.75rem 1rem',
         transform: visible ? 'translateX(0)' : 'translateX(110%)',
         opacity: visible ? 1 : 0,
@@ -147,7 +150,7 @@ function ToastItem({ toast, onDismiss }: ToastItemProps) {
         pointerEvents: 'auto',
       }}
     >
-      <span style={{ flex: 1, fontSize: '0.875rem', color: '#1f2937', lineHeight: 1.4 }}>
+      <span style={{ flex: 1, fontSize: '0.875rem', color: 'var(--toast-text)', lineHeight: 1.4 }}>
         {toast.message}
       </span>
       <button

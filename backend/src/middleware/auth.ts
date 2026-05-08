@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from "express";
-import { prisma } from "../db/prisma";
+import { pool } from "../db/pool";
 import { verifyToken } from "../utils/jwt";
 
 export async function requireAuth(req: Request, res: Response, next: NextFunction) {
@@ -13,16 +13,16 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
 
   try {
     const payload = verifyToken(token);
-    const user = await prisma.user.findUnique({
-      where: { id: payload.userId },
-      select: { id: true, email: true }
-    });
+    const { rows } = await pool.query<{ id: number; email: string }>(
+      `SELECT id, email FROM "User" WHERE id = $1`,
+      [payload.userId]
+    );
 
-    if (!user) {
+    if (!rows[0]) {
       return res.status(401).json({ message: "User not found" });
     }
 
-    req.user = user;
+    req.user = rows[0];
     return next();
   } catch {
     return res.status(401).json({ message: "Invalid token" });

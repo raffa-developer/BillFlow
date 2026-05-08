@@ -7,13 +7,13 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   loading?: boolean;
 }
 
-const base = 'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none select-none active:scale-[0.97]';
+const base = 'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-1 disabled:opacity-50 disabled:pointer-events-none select-none active:scale-[0.97]';
 
 const variants = {
-  primary: 'bg-gradient-to-b from-blue-500 to-blue-600 text-white shadow-sm shadow-blue-600/25 hover:from-blue-600 hover:to-blue-700 hover:shadow-blue-700/30 focus:ring-blue-500',
-  secondary: 'bg-white text-slate-700 shadow-sm ring-1 ring-slate-200 hover:bg-slate-50 hover:ring-slate-300 focus:ring-slate-400 dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-700 dark:hover:bg-slate-700',
-  ghost: 'text-slate-600 hover:bg-slate-100 hover:text-slate-800 focus:ring-slate-400 dark:text-slate-300 dark:hover:bg-slate-800',
-  danger: 'bg-gradient-to-b from-red-500 to-red-600 text-white shadow-sm shadow-red-500/20 hover:from-red-600 hover:to-red-700 focus:ring-red-500',
+  primary:   'bg-blue-600 text-white shadow-sm hover:bg-blue-700 focus:ring-blue-500 dark:bg-blue-600 dark:hover:bg-blue-500 dark:focus:ring-offset-slate-900',
+  secondary: 'bg-white text-slate-700 shadow-sm ring-1 ring-slate-200 hover:bg-slate-50 focus:ring-slate-300 dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-700 dark:hover:bg-slate-700 dark:focus:ring-slate-600 dark:focus:ring-offset-slate-900',
+  ghost:     'text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus:ring-slate-300 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100 dark:focus:ring-slate-700',
+  danger:    'bg-red-600 text-white shadow-sm hover:bg-red-700 focus:ring-red-500 dark:focus:ring-offset-slate-900',
 };
 
 const sizes = {

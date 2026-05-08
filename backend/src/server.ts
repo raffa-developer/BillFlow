@@ -1,6 +1,6 @@
 import { app } from "./app";
 import { env } from "./config/env";
-import { prisma } from "./db/prisma";
+import { pool } from "./db/pool";
 import { scheduleOverdueJob } from "./jobs/overdue";
 
 const server = app.listen(env.PORT, () => {
@@ -10,17 +10,10 @@ const server = app.listen(env.PORT, () => {
 
 async function shutdown(signal: string) {
   console.log(`Shutting down on ${signal}`);
-  server.close(() => {
-    console.log("HTTP server closed");
-  });
-  await prisma.$disconnect();
+  server.close(() => console.log("HTTP server closed"));
+  await pool.end();
   process.exit(0);
 }
 
-process.on("SIGINT", () => {
-  void shutdown("SIGINT");
-});
-
-process.on("SIGTERM", () => {
-  void shutdown("SIGTERM");
-});
+process.on("SIGINT", () => void shutdown("SIGINT"));
+process.on("SIGTERM", () => void shutdown("SIGTERM"));

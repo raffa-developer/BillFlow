@@ -106,13 +106,13 @@ export default function NewInvoicePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">{t('newInvoice.title')}</h1>
-        <p className="text-sm text-slate-500">{t('newInvoice.subtitle')}</p>
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{t('newInvoice.title')}</h1>
+        <p className="text-sm text-slate-500 dark:text-slate-400">{t('newInvoice.subtitle')}</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <Card className="p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-slate-700">{t('newInvoice.generalInfo')}</h2>
+          <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">{t('newInvoice.generalInfo')}</h2>
           <div className="grid gap-4 sm:grid-cols-3">
             <Select label={t('newInvoice.client')} value={clientId} onChange={(e) => setClientId(e.target.value)} required>
               <option value="">{t('newInvoice.selectClient')}</option>
@@ -127,7 +127,7 @@ export default function NewInvoicePage() {
 
         <Card className="p-5 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-700">{t('newInvoice.items')}</h2>
+            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">{t('newInvoice.items')}</h2>
             <Button type="button" variant="secondary" size="sm" onClick={() => setItems((p) => [...p, newRow()])}>
               <Plus className="h-3.5 w-3.5" /> {t('newInvoice.addItem')}
             </Button>
@@ -194,7 +194,7 @@ export default function NewInvoicePage() {
         </Card>
 
         <Card className="p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-slate-700">{t('newInvoice.discountTax')}</h2>
+          <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">{t('newInvoice.discountTax')}</h2>
           <div className="grid gap-4 sm:grid-cols-3">
             <Select label={t('newInvoice.discountType')} value={discountType} onChange={(e) => setDiscountType(e.target.value as DiscountType)}>
               <option value="NONE">{t('newInvoice.noDiscount')}</option>
@@ -231,31 +231,31 @@ export default function NewInvoicePage() {
         <Card className="p-5">
           <dl className="space-y-1.5 text-sm">
             <div className="flex justify-between">
-              <dt className="text-slate-500">{t('common.subtotal')}</dt>
-              <dd className="text-slate-700">{formatCurrency(totals.subtotal)}</dd>
+              <dt className="text-slate-500 dark:text-slate-400">{t('common.subtotal')}</dt>
+              <dd className="text-slate-700 dark:text-slate-300">{formatCurrency(totals.subtotal)}</dd>
             </div>
             {totals.discountAmount > 0 && (
               <div className="flex justify-between">
-                <dt className="text-slate-500">
+                <dt className="text-slate-500 dark:text-slate-400">
                   {t('common.discount')}{discountType === 'PERCENT' ? ` (${discountValue}%)` : ''}
                 </dt>
-                <dd className="text-slate-700">-{formatCurrency(totals.discountAmount)}</dd>
+                <dd className="text-slate-700 dark:text-slate-300">-{formatCurrency(totals.discountAmount)}</dd>
               </div>
             )}
             {totals.taxAmount > 0 && (
               <div className="flex justify-between">
-                <dt className="text-slate-500">{t('common.tax')} ({taxRate}%)</dt>
-                <dd className="text-slate-700">{formatCurrency(totals.taxAmount)}</dd>
+                <dt className="text-slate-500 dark:text-slate-400">{t('common.tax')} ({taxRate}%)</dt>
+                <dd className="text-slate-700 dark:text-slate-300">{formatCurrency(totals.taxAmount)}</dd>
               </div>
             )}
-            <div className="flex justify-between border-t border-slate-200 pt-2 mt-2">
-              <dt className="font-semibold text-slate-900">{t('common.total')}</dt>
-              <dd className="text-xl font-bold text-slate-900">{formatCurrency(totals.total)}</dd>
+            <div className="flex justify-between border-t border-slate-200 dark:border-slate-800 pt-2 mt-2">
+              <dt className="font-semibold text-slate-900 dark:text-slate-100">{t('common.total')}</dt>
+              <dd className="text-xl font-bold text-slate-900 dark:text-slate-100">{formatCurrency(totals.total)}</dd>
             </div>
           </dl>
         </Card>
 
-        {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+        {error && <p className="rounded-lg bg-red-50 dark:bg-red-950/40 px-3 py-2 text-sm text-red-600">{error}</p>}
 
         <div className="flex justify-end gap-3">
           <Button type="button" variant="secondary" onClick={() => navigate('/invoices')}>

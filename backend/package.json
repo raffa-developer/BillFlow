@@ -7,12 +7,9 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/server.js",
-    "prisma": "prisma",
-    "migrate": "prisma migrate dev",
-    "generate": "prisma generate"
+    "db:setup": "node scripts/db-setup.mjs"
   },
   "dependencies": {
-    "@prisma/client": "^5.16.0",
     "bcrypt": "^5.1.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
@@ -22,6 +19,7 @@
     "morgan": "^1.10.0",
     "node-cron": "^4.2.1",
     "nodemailer": "^8.0.7",
+    "pg": "^8.12.0",
     "pdfkit": "^0.18.0",
     "zod": "^3.23.8"
   },
@@ -34,8 +32,8 @@
     "@types/node": "^20.14.10",
     "@types/node-cron": "^3.0.11",
     "@types/nodemailer": "^8.0.0",
+    "@types/pg": "^8.11.6",
     "@types/pdfkit": "^0.17.6",
-    "prisma": "^5.16.0",
     "tsx": "^4.16.2",
     "typescript": "^5.5.4"
   }

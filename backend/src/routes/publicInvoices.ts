@@ -1,31 +1,41 @@
 import { Router } from "express";
-import { prisma } from "../db/prisma";
+import { pool } from "../db/pool";
 import { AppError } from "../utils/errors";
 import { renderInvoicePDF } from "../services/pdf";
 
 export const publicInvoicesRouter = Router();
 
-// GET /api/public/invoices/:token — fetch invoice (no auth)
+async function fetchByToken(token: string) {
+  const { rows: [invoice] } = await pool.query(
+    `SELECT i.id, i."userId", i."clientId", i.number, i.subtotal, i."discountType",
+            i."discountValue", i."taxRate", i."taxAmount", i.total, i.status,
+            i."dateIssued", i."dueDate", i.notes, i."publicToken", i."sentAt",
+            json_build_object('name', c.name, 'email', c.email, 'address', c.address) AS client,
+            json_build_object(
+              'companyName', u."companyName", 'companyAddress', u."companyAddress",
+              'companyVat', u."companyVat", 'companyEmail', u."companyEmail",
+              'companyPhone', u."companyPhone", 'companyLogoUrl', u."companyLogoUrl"
+            ) AS user
+     FROM "Invoice" i
+     JOIN "Client" c ON c.id = i."clientId"
+     JOIN "User" u ON u.id = i."userId"
+     WHERE i."publicToken" = $1`,
+    [token]
+  );
+  if (!invoice) return null;
+
+  const { rows: items } = await pool.query(
+    `SELECT id, "invoiceId", "productId", description, quantity, price
+     FROM "InvoiceItem" WHERE "invoiceId" = $1 ORDER BY id`,
+    [invoice.id]
+  );
+  invoice.items = items;
+  return invoice;
+}
+
 publicInvoicesRouter.get("/:token", async (req, res, next) => {
   try {
-    const { token } = req.params;
-    const invoice = await prisma.invoice.findUnique({
-      where: { publicToken: token },
-      include: {
-        client: { select: { name: true, email: true, address: true } },
-        items: true,
-        user: {
-          select: {
-            companyName: true,
-            companyAddress: true,
-            companyVat: true,
-            companyEmail: true,
-            companyPhone: true,
-            companyLogoUrl: true,
-          },
-        },
-      },
-    });
+    const invoice = await fetchByToken(req.params.token);
     if (!invoice) throw new AppError("Invoice not found", 404);
     res.json({ invoice });
   } catch (err) {
@@ -33,23 +43,14 @@ publicInvoicesRouter.get("/:token", async (req, res, next) => {
   }
 });
 
-// GET /api/public/invoices/:token/pdf — stream PDF
 publicInvoicesRouter.get("/:token/pdf", async (req, res, next) => {
   try {
-    const { token } = req.params;
-    const invoice = await prisma.invoice.findUnique({
-      where: { publicToken: token },
-      include: { client: true, items: true, user: true },
-    });
+    const invoice = await fetchByToken(req.params.token);
     if (!invoice) throw new AppError("Invoice not found", 404);
 
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader(
-      "Content-Disposition",
-      `inline; filename="${invoice.number}.pdf"`
-    );
-    const stream = renderInvoicePDF(invoice);
-    stream.pipe(res);
+    res.setHeader("Content-Disposition", `inline; filename="${invoice.number}.pdf"`);
+    renderInvoicePDF(invoice).pipe(res);
   } catch (err) {
     next(err);
   }
