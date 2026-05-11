@@ -9,8 +9,8 @@ import { signToken } from "../utils/jwt";
 
 export const meRouter = Router();
 
-const USER_SELECT = `id, email, "createdAt", "companyName", "companyAddress", "companyVat", "companyEmail", "companyPhone", "companyLogoUrl"`;
-const COMPANY_COLS = ["companyName", "companyAddress", "companyVat", "companyEmail", "companyPhone", "companyLogoUrl"] as const;
+const USER_SELECT = `id, email, "createdAt", "companyName", "companyAddress", "companyVat", "companyEmail", "companyPhone", "companyLogoUrl", "currency", "baseCurrency", "defaultTaxRate", "defaultPaymentDays", "invoicePrefix"`;
+const COMPANY_COLS = ["companyName", "companyAddress", "companyVat", "companyEmail", "companyPhone", "companyLogoUrl", "defaultTaxRate", "defaultPaymentDays", "invoicePrefix"] as const;
 
 meRouter.get("/", requireAuth, async (req, res, next) => {
   try {
@@ -32,6 +32,9 @@ const companySchema = z.object({
   companyEmail: z.string().email().nullable().optional().or(z.literal("")),
   companyPhone: z.string().max(40).nullable().optional(),
   companyLogoUrl: z.string().url().nullable().optional().or(z.literal("")),
+  defaultTaxRate: z.coerce.number().min(0).max(100).optional(),
+  defaultPaymentDays: z.coerce.number().int().min(1).max(365).optional(),
+  invoicePrefix: z.string().max(20).optional(),
 });
 
 meRouter.put("/company", requireAuth, validateBody(companySchema), async (req, res, next) => {
@@ -39,7 +42,7 @@ meRouter.put("/company", requireAuth, validateBody(companySchema), async (req, r
     const body = req.body as z.infer<typeof companySchema>;
 
     const fields: string[] = [];
-    const values: (string | null)[] = [];
+    const values: (string | number | null)[] = [];
     for (const col of COMPANY_COLS) {
       if (col in body) {
         fields.push(col);
@@ -48,7 +51,7 @@ meRouter.put("/company", requireAuth, validateBody(companySchema), async (req, r
       }
     }
 
-    values.push(req.user!.id as unknown as string);
+    values.push(req.user!.id);
     const set = fields.length > 0
       ? fields.map((f, i) => `"${f}" = $${i + 1}`).join(", ") + ","
       : "";
@@ -127,6 +130,109 @@ meRouter.put("/password", requireAuth, validateBody(passwordChangeSchema), async
     await pool.query(`UPDATE "User" SET "passwordHash" = $1 WHERE id = $2`, [passwordHash, userId]);
 
     res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+meRouter.get('/exchange-rate', requireAuth, async (req, res, next) => {
+  try {
+    const from = String(req.query.from ?? 'EUR').toUpperCase();
+    const to   = String(req.query.to   ?? 'USD').toUpperCase();
+
+    if (from === to) return res.json({ rate: 1 });
+
+    const response = await fetch(
+      `https://api.frankfurter.app/latest?from=${from}&to=${to}`
+    );
+    if (!response.ok) throw new AppError('Exchange rate service unavailable', 502);
+
+    const data = await response.json() as { rates: Record<string, number> };
+    const rate = data.rates[to];
+    if (!rate) throw new AppError(`No rate found for ${from}→${to}`, 400);
+
+    res.json({ rate });
+  } catch (err) {
+    next(err);
+  }
+});
+
+const currencySchema = z.object({
+  currency: z.enum(['EUR', 'USD', 'GBP', 'BRL']),
+  // rate from baseCurrency → currency (1 when returning to baseCurrency)
+  rate: z.number().positive().default(1),
+});
+
+meRouter.put('/currency', requireAuth, validateBody(currencySchema), async (req, res, next) => {
+  try {
+    const { currency, rate } = req.body as z.infer<typeof currencySchema>;
+    const userId = req.user!.id;
+
+    const { rows: [userData] } = await pool.query(
+      `SELECT "baseCurrency" FROM "User" WHERE id = $1`, [userId]
+    );
+    const returningToBase = currency === userData.baseCurrency;
+
+    if (returningToBase) {
+      // Restore exact original values — no rounding loss
+      await pool.query(
+        `UPDATE "InvoiceItem" ii
+         SET price = ROUND(ii."basePrice"::numeric, 2)
+         FROM "Invoice" inv
+         WHERE ii."invoiceId" = inv.id AND inv."userId" = $1`,
+        [userId]
+      );
+      await pool.query(
+        `UPDATE "Invoice"
+         SET
+           subtotal        = ROUND("baseSubtotal"::numeric, 2),
+           "discountValue" = CASE
+             WHEN "discountType" = 'FIXED' THEN ROUND("baseDiscountValue"::numeric, 2)
+             ELSE "discountValue"
+           END,
+           "taxAmount"     = ROUND("baseTaxAmount"::numeric, 2),
+           total           = ROUND("baseTotal"::numeric, 2)
+         WHERE "userId" = $1`,
+        [userId]
+      );
+      await pool.query(
+        `UPDATE "Product" SET price = ROUND("basePrice"::numeric, 2) WHERE "userId" = $1`,
+        [userId]
+      );
+    } else {
+      // Always convert FROM base values (not from already-converted values)
+      await pool.query(
+        `UPDATE "InvoiceItem" ii
+         SET price = ROUND((ii."basePrice" * $1)::numeric, 2)
+         FROM "Invoice" inv
+         WHERE ii."invoiceId" = inv.id AND inv."userId" = $2`,
+        [rate, userId]
+      );
+      await pool.query(
+        `UPDATE "Invoice"
+         SET
+           subtotal        = ROUND(("baseSubtotal"      * $1)::numeric, 2),
+           "discountValue" = CASE
+             WHEN "discountType" = 'FIXED' THEN ROUND(("baseDiscountValue" * $1)::numeric, 2)
+             ELSE "discountValue"
+           END,
+           "taxAmount"     = ROUND(("baseTaxAmount"     * $1)::numeric, 2),
+           total           = ROUND(("baseTotal"         * $1)::numeric, 2)
+         WHERE "userId" = $2`,
+        [rate, userId]
+      );
+      await pool.query(
+        `UPDATE "Product" SET price = ROUND(("basePrice" * $1)::numeric, 2) WHERE "userId" = $2`,
+        [rate, userId]
+      );
+    }
+
+    const { rows: [user] } = await pool.query(
+      `UPDATE "User" SET "currency" = $1 WHERE id = $2 RETURNING ${USER_SELECT}`,
+      [currency, userId]
+    );
+
+    res.json({ user });
   } catch (err) {
     next(err);
   }

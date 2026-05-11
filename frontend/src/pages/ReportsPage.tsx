@@ -898,6 +898,50 @@ export default function ReportsPage() {
         )}
       </Card>
 
+      {/* ── Aging report ─────────────────────────────────────── */}
+      {(() => {
+        const now = new Date();
+        const unpaid = allInvoices.filter(i => i.status === 'PENDING' || i.status === 'OVERDUE');
+        const buckets = [
+          { label: '0–30 days',  min: 0,  max: 30  },
+          { label: '31–60 days', min: 31, max: 60  },
+          { label: '61–90 days', min: 61, max: 90  },
+          { label: '90+ days',   min: 91, max: Infinity },
+        ].map(b => {
+          const list = unpaid.filter(i => {
+            const days = Math.floor((now.getTime() - new Date(i.dueDate).getTime()) / 86400000);
+            return days >= b.min && days <= b.max;
+          });
+          return { ...b, count: list.length, amount: list.reduce((s, i) => s + parseFloat(i.total), 0) };
+        });
+        const totalUnpaid = unpaid.reduce((s, i) => s + parseFloat(i.total), 0);
+        const colors = ['text-slate-600 dark:text-slate-300', 'text-amber-600 dark:text-amber-400', 'text-orange-600 dark:text-orange-400', 'text-red-600 dark:text-red-400'];
+        const bars   = ['bg-slate-400', 'bg-amber-400', 'bg-orange-500', 'bg-red-500'];
+        return (
+          <Card className="p-5">
+            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1">Invoice Aging</h2>
+            <p className="text-xs text-slate-400 dark:text-slate-500 mb-5">
+              {unpaid.length} unpaid invoice{unpaid.length !== 1 ? 's' : ''} · {formatAmount(totalUnpaid)} outstanding (all time)
+            </p>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+              {buckets.map((b, i) => {
+                const pct = totalUnpaid > 0 ? (b.amount / totalUnpaid) * 100 : 0;
+                return (
+                  <div key={b.label} className="space-y-2">
+                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{b.label}</p>
+                    <p className={cn('text-xl font-bold tabular-nums', colors[i])}>{formatAmount(b.amount)}</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500">{b.count} invoice{b.count !== 1 ? 's' : ''}</p>
+                    <div className="h-1.5 w-full rounded-full bg-slate-100 dark:bg-slate-800">
+                      <div className={cn('h-1.5 rounded-full transition-all duration-500', bars[i])} style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        );
+      })()}
+
       {/* ── Bottom row ───────────────────────────────────────── */}
       <div className="grid gap-5 lg:grid-cols-5">
 

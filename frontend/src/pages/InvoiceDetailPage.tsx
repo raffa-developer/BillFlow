@@ -1,14 +1,15 @@
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, CheckCircle, Clock, AlertCircle, Trash2, Download, Send, Copy } from 'lucide-react';
+import { ArrowLeft, CheckCircle, Clock, AlertCircle, Trash2, Download, Send, Copy, CopyPlus, Bell } from 'lucide-react';
 import { invoicesApi } from '../lib/api';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { StatusBadge } from '../components/ui/Badge';
 import { Modal } from '../components/ui/Modal';
-import { formatCurrency, formatDate } from '../lib/utils';
+import { formatDate } from '../lib/utils';
+import { useCurrency } from '../contexts/CurrencyContext';
 import { useState } from 'react';
 import { useToast } from '../contexts/ToastContext';
 import type { InvoiceStatus } from '../types';
@@ -19,17 +20,34 @@ export default function InvoiceDetailPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { toast } = useToast();
+  const { formatAmount } = useCurrency();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [sendOpen, setSendOpen] = useState(false);
   const [sendTo, setSendTo] = useState('');
   const [sendMessage, setSendMessage] = useState('');
+  const [remindOpen, setRemindOpen] = useState(false);
+  const [remindTo, setRemindTo] = useState('');
+  const [remindLoading, setRemindLoading] = useState(false);
+  const [paymentOpen, setPaymentOpen] = useState(false);
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentDate, setPaymentDate] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('bank_transfer');
+  const [paymentRef, setPaymentRef] = useState('');
 
   const { data, isLoading } = useQuery({
     queryKey: ['invoice', id],
     queryFn: () => invoicesApi.get(parseInt(id!)),
     enabled: !!id,
   });
+
+  const { data: paymentsData } = useQuery({
+    queryKey: ['invoice-payments', id],
+    queryFn: () => invoicesApi.getPayments(parseInt(id!)),
+    enabled: !!id,
+    retry: false,
+  });
   const invoice = data?.data.invoice;
+  const payments = paymentsData?.data.payments ?? [];
 
   const statusMutation = useMutation({
     mutationFn: (status: InvoiceStatus) => invoicesApi.update(parseInt(id!), { status }),
@@ -38,6 +56,30 @@ export default function InvoiceDetailPage() {
       qc.invalidateQueries({ queryKey: ['invoices'] });
       qc.invalidateQueries({ queryKey: ['dashboard'] });
     },
+  });
+
+  const paymentMutation = useMutation({
+    mutationFn: () =>
+      invoicesApi.recordPayment(parseInt(id!), {
+        amount: paymentAmount ? parseFloat(paymentAmount) : undefined,
+        paidAt: paymentDate ? new Date(paymentDate).toISOString() : undefined,
+        method: paymentMethod,
+        reference: paymentRef || undefined,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['invoice', id] });
+      qc.invalidateQueries({ queryKey: ['invoice-payments', id] });
+      qc.invalidateQueries({ queryKey: ['invoices'] });
+      qc.invalidateQueries({ queryKey: ['dashboard'] });
+      setPaymentOpen(false);
+      setPaymentAmount('');
+      setPaymentDate('');
+      setPaymentMethod('bank_transfer');
+      setPaymentRef('');
+      toast.success('Payment recorded');
+    },
+    onError: (err: { response?: { data?: { message?: string } } }) =>
+      toast.error(err.response?.data?.message ?? 'Failed to record payment'),
   });
 
   const deleteMutation = useMutation({
@@ -57,8 +99,8 @@ export default function InvoiceDetailPage() {
       setSendOpen(false);
       toast.success(
         data.mocked
-          ? `Email simulado para ${data.recipient} (SMTP não configurado)`
-          : `Email enviado para ${data.recipient}`
+          ? `Simulated email to ${data.recipient} (SMTP not configured)`
+          : `Email sent to ${data.recipient}`
       );
     },
     onError: (err: { response?: { data?: { message?: string } } }) =>
@@ -90,6 +132,46 @@ export default function InvoiceDetailPage() {
     const url = `${window.location.origin}/pay/${invoice.publicToken}`;
     await navigator.clipboard.writeText(url);
     toast.success(t('common.linkCopied'));
+  };
+
+  const cloneInvoice = () => {
+    if (!invoice) return;
+    navigate('/invoices/new', {
+      state: {
+        template: {
+          clientId: invoice.clientId,
+          items: invoice.items.map(i => ({
+            description: i.description,
+            quantity: i.quantity,
+            price: parseFloat(i.price),
+            productId: i.productId ?? undefined,
+          })),
+          discountType: invoice.discountType,
+          discountValue: parseFloat(invoice.discountValue),
+          taxRate: parseFloat(invoice.taxRate),
+          notes: invoice.notes ?? '',
+        },
+      },
+    });
+  };
+
+  const sendReminder = async () => {
+    if (!invoice) return;
+    setRemindLoading(true);
+    try {
+      const { data } = await invoicesApi.send(parseInt(id!), {
+        to: remindTo || undefined,
+        message: `Reminder: Invoice ${invoice.number} is due on ${formatDate(invoice.dueDate)}.`,
+      });
+      qc.invalidateQueries({ queryKey: ['invoice', id] });
+      qc.invalidateQueries({ queryKey: ['invoices'] });
+      setRemindOpen(false);
+      toast.success(data.mocked ? `Simulated reminder to ${data.recipient}` : `Reminder sent to ${data.recipient}`);
+    } catch {
+      toast.error(t('invoiceDetail.errorSend'));
+    } finally {
+      setRemindLoading(false);
+    }
   };
 
   if (isLoading) {
@@ -130,7 +212,7 @@ export default function InvoiceDetailPage() {
         </div>
         <div className="flex gap-2 flex-wrap">
           {invoice.status !== 'PAID' && (
-            <Button variant="secondary" size="sm" onClick={() => statusMutation.mutate('PAID')} loading={statusMutation.isPending}>
+            <Button variant="secondary" size="sm" onClick={() => { setPaymentAmount(invoice.total); setPaymentDate(new Date().toISOString().slice(0, 10)); setPaymentOpen(true); }}>
               <CheckCircle className="h-4 w-4 text-green-600" /> {t('invoiceDetail.markPaid')}
             </Button>
           )}
@@ -149,6 +231,14 @@ export default function InvoiceDetailPage() {
           </Button>
           <Button variant="secondary" size="sm" onClick={() => setSendOpen(true)}>
             <Send className="h-4 w-4" /> {t('invoiceDetail.send')}
+          </Button>
+          {(invoice.status === 'PENDING' || invoice.status === 'OVERDUE') && (
+            <Button variant="secondary" size="sm" onClick={() => { setRemindTo(invoice.client.email ?? ''); setRemindOpen(true); }}>
+              <Bell className="h-4 w-4" /> {t('invoiceDetail.remind')}
+            </Button>
+          )}
+          <Button variant="secondary" size="sm" onClick={cloneInvoice}>
+            <CopyPlus className="h-4 w-4" /> {t('invoiceDetail.clone')}
           </Button>
           <Button variant="ghost" size="sm" onClick={copyPublicLink}>
             <Copy className="h-4 w-4" />
@@ -169,21 +259,21 @@ export default function InvoiceDetailPage() {
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">{t('invoiceDetail.summary')}</p>
           <div className="space-y-1 text-sm">
             <div className="flex justify-between text-slate-600 dark:text-slate-400">
-              <span>{t('common.subtotal')}</span><span>{formatCurrency(subtotal)}</span>
+              <span>{t('common.subtotal')}</span><span>{formatAmount(subtotal)}</span>
             </div>
             {discountAmount > 0 && (
               <div className="flex justify-between text-slate-600 dark:text-slate-400">
                 <span>{t('common.discount')}{invoice.discountType === 'PERCENT' ? ` (${discountValue}%)` : ''}</span>
-                <span>-{formatCurrency(discountAmount)}</span>
+                <span>-{formatAmount(discountAmount)}</span>
               </div>
             )}
             {taxAmount > 0 && (
               <div className="flex justify-between text-slate-600 dark:text-slate-400">
-                <span>{t('common.tax')} ({taxRate}%)</span><span>{formatCurrency(taxAmount)}</span>
+                <span>{t('common.tax')} ({taxRate}%)</span><span>{formatAmount(taxAmount)}</span>
               </div>
             )}
             <div className="flex justify-between font-semibold text-slate-900 dark:text-slate-100 border-t border-slate-200 dark:border-slate-800 pt-1 mt-1">
-              <span>{t('common.total')}</span><span className="text-blue-600">{formatCurrency(invoice.total)}</span>
+              <span>{t('common.total')}</span><span className="text-blue-600">{formatAmount(invoice.total)}</span>
             </div>
           </div>
         </Card>
@@ -215,14 +305,35 @@ export default function InvoiceDetailPage() {
                 <tr key={item.id}>
                   <td className="px-5 py-3.5 text-slate-800 dark:text-slate-200">{item.description}</td>
                   <td className="px-5 py-3.5 text-right text-slate-500 dark:text-slate-400">{item.quantity}</td>
-                  <td className="px-5 py-3.5 text-right text-slate-500 dark:text-slate-400">{formatCurrency(item.price)}</td>
-                  <td className="px-5 py-3.5 text-right font-medium text-slate-700 dark:text-slate-300">{formatCurrency(parseFloat(item.price) * item.quantity)}</td>
+                  <td className="px-5 py-3.5 text-right text-slate-500 dark:text-slate-400">{formatAmount(item.price)}</td>
+                  <td className="px-5 py-3.5 text-right font-medium text-slate-700 dark:text-slate-300">{formatAmount(parseFloat(item.price) * item.quantity)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </Card>
+
+      {payments.length > 0 && (
+        <Card>
+          <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800">
+            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Payment history</h2>
+          </div>
+          <div className="divide-y divide-slate-100 dark:divide-slate-800">
+            {payments.map((p) => (
+              <div key={p.id} className="flex items-center justify-between px-5 py-3">
+                <div>
+                  <p className="text-sm font-medium text-slate-700 dark:text-slate-300 capitalize">{p.method.replace('_', ' ')}</p>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
+                    {formatDate(p.paidAt)}{p.reference && ` · ${p.reference}`}
+                  </p>
+                </div>
+                <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">{formatAmount(p.amount)}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       <Modal open={deleteOpen} onClose={() => setDeleteOpen(false)} title={t('invoiceDetail.deleteTitle')}>
         <p className="text-sm text-slate-600 dark:text-slate-400 mb-5">{t('invoiceDetail.deleteConfirm')}</p>
@@ -240,7 +351,7 @@ export default function InvoiceDetailPage() {
             type="email"
             value={sendTo}
             onChange={(e) => setSendTo(e.target.value)}
-            placeholder={invoice.client.email ?? 'email@exemplo.com'}
+            placeholder={invoice.client.email ?? 'email@example.com'}
           />
           <div>
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
@@ -258,6 +369,72 @@ export default function InvoiceDetailPage() {
             <Button variant="secondary" onClick={() => setSendOpen(false)}>{t('common.cancel')}</Button>
             <Button loading={sendMutation.isPending} onClick={() => sendMutation.mutate()}>
               <Send className="h-4 w-4" /> {t('invoiceDetail.sendEmail')}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={paymentOpen} onClose={() => setPaymentOpen(false)} title="Record payment">
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Amount"
+              type="number"
+              min="0.01"
+              step="0.01"
+              value={paymentAmount}
+              onChange={(e) => setPaymentAmount(e.target.value)}
+            />
+            <Input
+              label="Date"
+              type="date"
+              value={paymentDate}
+              onChange={(e) => setPaymentDate(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Method</label>
+            <select
+              value={paymentMethod}
+              onChange={(e) => setPaymentMethod(e.target.value)}
+              className="h-9 w-full rounded-lg border border-slate-300 px-3 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+            >
+              <option value="bank_transfer">Bank transfer</option>
+              <option value="cash">Cash</option>
+              <option value="card">Card</option>
+              <option value="check">Check</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <Input
+            label="Reference (optional)"
+            value={paymentRef}
+            onChange={(e) => setPaymentRef(e.target.value)}
+            placeholder="Transaction ID, check number…"
+          />
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setPaymentOpen(false)}>{t('common.cancel')}</Button>
+            <Button loading={paymentMutation.isPending} onClick={() => paymentMutation.mutate()}>
+              <CheckCircle className="h-4 w-4" /> Record payment
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={remindOpen} onClose={() => setRemindOpen(false)} title={t('invoiceDetail.remindTitle')}>
+        <div className="space-y-4">
+          <p className="text-sm text-slate-500 dark:text-slate-400">{t('invoiceDetail.remindDescription')}</p>
+          <Input
+            label={t('invoiceDetail.recipientEmail')}
+            type="email"
+            value={remindTo}
+            onChange={(e) => setRemindTo(e.target.value)}
+            placeholder={invoice.client.email ?? 'email@example.com'}
+          />
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setRemindOpen(false)}>{t('common.cancel')}</Button>
+            <Button loading={remindLoading} onClick={sendReminder}>
+              <Bell className="h-4 w-4" /> {t('invoiceDetail.sendReminder')}
             </Button>
           </div>
         </div>

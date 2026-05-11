@@ -74,6 +74,9 @@ function CompanyTab() {
     companyEmail: '',
     companyPhone: '',
     companyLogoUrl: '',
+    defaultTaxRate: '0',
+    defaultPaymentDays: '30',
+    invoicePrefix: 'INV',
   });
 
   useEffect(() => {
@@ -85,12 +88,19 @@ function CompanyTab() {
         companyEmail: user.companyEmail ?? '',
         companyPhone: user.companyPhone ?? '',
         companyLogoUrl: user.companyLogoUrl ?? '',
+        defaultTaxRate: String(user.defaultTaxRate ?? 0),
+        defaultPaymentDays: String(user.defaultPaymentDays ?? 30),
+        invoicePrefix: user.invoicePrefix ?? 'INV',
       });
     }
   }, [user]);
 
   const save = useMutation({
-    mutationFn: () => meApi.updateCompany(form),
+    mutationFn: () => meApi.updateCompany({
+      ...form,
+      defaultTaxRate: parseFloat(form.defaultTaxRate) || 0,
+      defaultPaymentDays: parseInt(form.defaultPaymentDays) || 30,
+    }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['me'] });
       toast.success(t('settings.companySaved'));
@@ -122,6 +132,36 @@ function CompanyTab() {
             <img src={form.companyLogoUrl} alt="Logo" className="h-12 object-contain" />
           </div>
         )}
+
+        <div className="border-t border-slate-200 dark:border-slate-800 pt-5 mt-2">
+          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">{t('settings.defaultsSection')}</h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">{t('settings.defaultsDescription')}</p>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Input
+              label={t('settings.defaultTaxRate')}
+              type="number"
+              min="0"
+              max="100"
+              step="0.01"
+              value={form.defaultTaxRate}
+              onChange={(e) => setForm({ ...form, defaultTaxRate: e.target.value })}
+            />
+            <Input
+              label={t('settings.defaultPaymentDays')}
+              type="number"
+              min="1"
+              max="365"
+              value={form.defaultPaymentDays}
+              onChange={(e) => setForm({ ...form, defaultPaymentDays: e.target.value })}
+            />
+            <Input
+              label={t('settings.invoicePrefix')}
+              value={form.invoicePrefix}
+              onChange={(e) => setForm({ ...form, invoicePrefix: e.target.value })}
+              placeholder="INV"
+            />
+          </div>
+        </div>
 
         <div className="flex justify-end pt-2">
           <Button type="submit" loading={save.isPending}>{t('common.save')}</Button>

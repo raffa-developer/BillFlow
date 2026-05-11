@@ -1,8 +1,8 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Plus, Search, Pencil, Trash2, Users, Mail, Phone, Eye, X, SlidersHorizontal } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Users, Mail, Phone, Eye, X, SlidersHorizontal, ChevronLeft, ChevronRight } from 'lucide-react';
 import { clientsApi } from '../lib/api';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -48,6 +48,8 @@ export default function ClientsPage() {
   const [modal, setModal]             = useState<{ open: boolean; client: Client | null }>({ open: false, client: null });
   const [form, setForm]               = useState<ClientForm>(emptyForm);
   const [deleteId, setDeleteId]       = useState<number | null>(null);
+  const [deleteError, setDeleteError] = useState('');
+  const [page, setPage]               = useState(1);
 
   const { data, isLoading } = useQuery({ queryKey: ['clients'], queryFn: () => clientsApi.list() });
   const all = data?.data.clients ?? [];
@@ -73,6 +75,12 @@ export default function ClientsPage() {
   }, [all, search, sort, hasEmail, hasPhone, hasAddress]);
 
   const hasActiveFilters = !!(search || hasEmail || hasPhone || hasAddress);
+
+  const PAGE_SIZE = 10;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  useEffect(() => { setPage(1); }, [search, sort, hasEmail, hasPhone, hasAddress]);
 
   const clearAll = () => {
     setSearch(''); setHasEmail(false); setHasPhone(false); setHasAddress(false);
@@ -104,8 +112,11 @@ export default function ClientsPage() {
       qc.invalidateQueries({ queryKey: ['dashboard'] });
       toast.success(t('clients.deleted'));
       setDeleteId(null);
+      setDeleteError('');
     },
-    onError: () => toast.error(t('clients.errorDelete')),
+    onError: (err: { response?: { data?: { message?: string } } }) => {
+      setDeleteError(err.response?.data?.message ?? t('clients.errorDelete'));
+    },
   });
 
   const openCreate = () => { setForm(emptyForm); setModal({ open: true, client: null }); };
@@ -223,7 +234,7 @@ export default function ClientsPage() {
           </div>
         ) : (
           <div className="divide-y divide-slate-50 dark:divide-slate-800">
-            {filtered.map(c => (
+            {paginated.map(c => (
               <div key={c.id} className="flex items-center gap-4 px-5 py-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-200 text-sm font-semibold">
                   {c.name[0]?.toUpperCase()}
@@ -249,6 +260,40 @@ export default function ClientsPage() {
             ))}
           </div>
         )}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800 px-5 py-3">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Page {page} of {totalPages} · {filtered.length} clients
+            </p>
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="sm" disabled={page === 1} onClick={() => setPage(p => p - 1)}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                const start = Math.min(Math.max(page - 2, 1), Math.max(totalPages - 4, 1));
+                const pageNum = start + i;
+                if (pageNum > totalPages) return null;
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setPage(pageNum)}
+                    className={cn(
+                      'h-7 w-7 rounded text-xs font-medium transition-colors',
+                      page === pageNum
+                        ? 'bg-blue-600 text-white'
+                        : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
+                    )}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+              <Button variant="ghost" size="sm" disabled={page === totalPages} onClick={() => setPage(p => p + 1)}>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
       </Card>
 
       <Modal open={modal.open} onClose={closeModal} title={modal.client ? t('clients.editTitle') : t('clients.newTitle')}>
@@ -264,10 +309,13 @@ export default function ClientsPage() {
         </form>
       </Modal>
 
-      <Modal open={deleteId !== null} onClose={() => setDeleteId(null)} title={t('clients.deleteTitle')}>
-        <p className="text-sm text-slate-600 dark:text-slate-400 mb-5">{t('clients.deleteConfirm')}</p>
+      <Modal open={deleteId !== null} onClose={() => { setDeleteId(null); setDeleteError(''); }} title={t('clients.deleteTitle')}>
+        <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">{t('clients.deleteConfirm')}</p>
+        {deleteError && (
+          <p className="rounded-lg bg-red-50 dark:bg-red-950/40 px-3 py-2 text-sm text-red-600 mb-4">{deleteError}</p>
+        )}
         <div className="flex justify-end gap-2">
-          <Button variant="secondary" onClick={() => setDeleteId(null)}>{t('common.cancel')}</Button>
+          <Button variant="secondary" onClick={() => { setDeleteId(null); setDeleteError(''); }}>{t('common.cancel')}</Button>
           <Button variant="danger" loading={deleteMutation.isPending} onClick={() => deleteId !== null && deleteMutation.mutate(deleteId)}>{t('common.delete')}</Button>
         </div>
       </Modal>

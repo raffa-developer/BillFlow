@@ -137,6 +137,11 @@ const es: Translations = {
     generateLinkFirst: 'Envíe la factura para generar el enlace público.',
     errorPdf: 'Error al generar PDF.',
     errorSend: 'Error al enviar correo.',
+    remind: 'Recordatorio',
+    clone: 'Duplicar',
+    remindTitle: 'Enviar recordatorio de pago',
+    remindDescription: 'Se enviará un correo de recordatorio al cliente con los detalles de la factura.',
+    sendReminder: 'Enviar recordatorio',
   },
   newInvoice: {
     title: 'Nueva factura',
@@ -165,6 +170,10 @@ const es: Translations = {
     errNoDueDate: 'Ingrese la fecha de vencimiento.',
     errInvalidItems: 'Complete todos los ítems correctamente.',
     errCreate: 'Error al crear factura.',
+    errDueDateBeforeIssued: 'La fecha de vencimiento no puede ser anterior a la fecha de emisión.',
+    clonedFrom: 'Pre-rellenado desde una factura duplicada. Actualice las fechas y revise antes de crear.',
+    draftRestored: 'Borrador restaurado. Se ha cargado su trabajo anterior.',
+    discardDraft: 'Descartar borrador',
   },
   reports: {
     title: 'Informes',
@@ -239,6 +248,11 @@ const es: Translations = {
     errorSave: 'Error al guardar.',
     errorEmail: 'Error al actualizar correo.',
     errorPassword: 'Error al cambiar contraseña.',
+    defaultsSection: 'Valores predeterminados de factura',
+    defaultsDescription: 'Estos valores se rellenan automáticamente al crear una nueva factura.',
+    defaultTaxRate: 'IVA predeterminado (%)',
+    defaultPaymentDays: 'Términos de pago (días)',
+    invoicePrefix: 'Prefijo de factura',
   },
   publicInvoice: {
     invoice: 'Factura',
@@ -251,6 +265,10 @@ const es: Translations = {
     invalidLink: 'El enlace puede haber expirado o ser inválido.',
     poweredBy: 'Factura creada con',
     vatId: 'RFC/RUT',
+    overdueTitle: 'Esta factura está vencida',
+    overdueBody: 'Por favor, contáctenos para gestionar el pago.',
+    paidConfirm: '¡Esta factura ha sido pagada. ¡Gracias!',
+    contactUs: 'Contáctenos',
   },
   auth: {
     login: {

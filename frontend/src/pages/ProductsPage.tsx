@@ -1,13 +1,14 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Plus, Search, Pencil, Trash2, Package, X, SlidersHorizontal } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Package, X, SlidersHorizontal, ChevronLeft, ChevronRight } from 'lucide-react';
 import { productsApi } from '../lib/api';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
-import { formatCurrency, cn } from '../lib/utils';
+import { cn } from '../lib/utils';
+import { useCurrency } from '../contexts/CurrencyContext';
 import type { Product } from '../types';
 
 interface ProductForm { name: string; price: string; description: string; }
@@ -37,6 +38,7 @@ function applySort(list: Product[], sort: SortKey): Product[] {
 export default function ProductsPage() {
   const { t } = useTranslation();
   const qc = useQueryClient();
+  const { formatAmount } = useCurrency();
 
   const [search, setSearch]           = useState('');
   const [sort, setSort]               = useState<SortKey>('newest');
@@ -47,6 +49,7 @@ export default function ProductsPage() {
   const [modal, setModal]             = useState<{ open: boolean; product: Product | null }>({ open: false, product: null });
   const [form, setForm]               = useState<ProductForm>(emptyForm);
   const [deleteId, setDeleteId]       = useState<number | null>(null);
+  const [page, setPage]               = useState(1);
 
   const { data, isLoading } = useQuery({ queryKey: ['products'], queryFn: () => productsApi.list() });
   const all = data?.data.products ?? [];
@@ -70,6 +73,12 @@ export default function ProductsPage() {
   }, [all, search, sort, minPrice, maxPrice, hasDesc]);
 
   const hasActiveFilters = !!(search || minPrice || maxPrice || hasDesc);
+
+  const PAGE_SIZE = 10;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  useEffect(() => { setPage(1); }, [search, sort, minPrice, maxPrice, hasDesc]);
 
   const clearAll = () => {
     setSearch(''); setMinPrice(''); setMaxPrice(''); setHasDesc(false);
@@ -204,12 +213,12 @@ export default function ProductsPage() {
             <p className="text-sm font-medium">{hasActiveFilters ? 'No products match your filters' : t('products.none')}</p>
             {hasActiveFilters
               ? <button onClick={clearAll} className="text-xs text-blue-500 hover:underline">Clear filters</button>
-              : null
+              : <Button variant="secondary" size="sm" onClick={openCreate}><Plus className="h-3.5 w-3.5" /> {t('products.new')}</Button>
             }
           </div>
         ) : (
           <div className="divide-y divide-slate-100 dark:divide-slate-800">
-            {filtered.map(p => (
+            {paginated.map(p => (
               <div key={p.id} className="flex items-center justify-between px-5 py-4 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors group">
                 <div className="min-w-0 flex-1">
                   <p className="font-medium text-slate-800 dark:text-slate-200">{p.name}</p>
@@ -218,8 +227,13 @@ export default function ProductsPage() {
                   </p>
                 </div>
                 <div className="flex items-center gap-3 ml-4">
+                  {(p.invoiceCount ?? 0) > 0 && (
+                    <span className="text-xs text-slate-400 dark:text-slate-500 tabular-nums">
+                      {p.invoiceCount} inv.
+                    </span>
+                  )}
                   <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 tabular-nums">
-                    {formatCurrency(p.price)}
+                    {formatAmount(p.price)}
                   </span>
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <Button variant="ghost" size="sm" onClick={() => openEdit(p)}><Pencil className="h-3.5 w-3.5" /></Button>
@@ -230,6 +244,40 @@ export default function ProductsPage() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800 px-5 py-3">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Page {page} of {totalPages} · {filtered.length} products
+            </p>
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="sm" disabled={page === 1} onClick={() => setPage(p => p - 1)}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                const start = Math.min(Math.max(page - 2, 1), Math.max(totalPages - 4, 1));
+                const pageNum = start + i;
+                if (pageNum > totalPages) return null;
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setPage(pageNum)}
+                    className={cn(
+                      'h-7 w-7 rounded text-xs font-medium transition-colors',
+                      page === pageNum
+                        ? 'bg-blue-600 text-white'
+                        : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
+                    )}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+              <Button variant="ghost" size="sm" disabled={page === totalPages} onClick={() => setPage(p => p + 1)}>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         )}
       </Card>
@@ -247,13 +295,26 @@ export default function ProductsPage() {
       </Modal>
 
       <Modal open={deleteId !== null} onClose={() => setDeleteId(null)} title={t('products.deleteTitle')}>
-        <p className="text-sm text-slate-600 dark:text-slate-400 mb-5">{t('products.deleteConfirm')}</p>
-        <div className="flex justify-end gap-2">
-          <Button variant="secondary" onClick={() => setDeleteId(null)}>{t('common.cancel')}</Button>
-          <Button variant="danger" loading={deleteMutation.isPending} onClick={() => deleteId !== null && deleteMutation.mutate(deleteId)}>
-            {t('common.delete')}
-          </Button>
-        </div>
+        {(() => {
+          const prod = all.find(p => p.id === deleteId);
+          const count = prod?.invoiceCount ?? 0;
+          return (
+            <>
+              {count > 0 && (
+                <p className="rounded-lg bg-amber-50 dark:bg-amber-950/40 px-3 py-2 text-sm text-amber-700 dark:text-amber-400 mb-3">
+                  This product is used in {count} invoice{count !== 1 ? 's' : ''}. Deleting it will not remove those invoice lines.
+                </p>
+              )}
+              <p className="text-sm text-slate-600 dark:text-slate-400 mb-5">{t('products.deleteConfirm')}</p>
+              <div className="flex justify-end gap-2">
+                <Button variant="secondary" onClick={() => setDeleteId(null)}>{t('common.cancel')}</Button>
+                <Button variant="danger" loading={deleteMutation.isPending} onClick={() => deleteId !== null && deleteMutation.mutate(deleteId)}>
+                  {t('common.delete')}
+                </Button>
+              </div>
+            </>
+          );
+        })()}
       </Modal>
     </div>
   );

@@ -1,14 +1,16 @@
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Download } from 'lucide-react';
+import { Download, Mail, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { publicInvoiceApi } from '../lib/api';
-import { formatCurrency, formatDate } from '../lib/utils';
+import { formatDate } from '../lib/utils';
+import { useCurrency } from '../contexts/CurrencyContext';
 import { StatusBadge } from '../components/ui/Badge';
 
 export default function PublicInvoicePage() {
   const { t } = useTranslation();
   const { token } = useParams<{ token: string }>();
+  const { formatAmount } = useCurrency();
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['public-invoice', token],
@@ -133,9 +135,9 @@ export default function PublicInvoicePage() {
                   <tr key={item.id}>
                     <td className="px-6 py-3.5 text-slate-700 dark:text-slate-300">{item.description}</td>
                     <td className="px-6 py-3.5 text-right text-slate-500 dark:text-slate-400">{item.quantity}</td>
-                    <td className="px-6 py-3.5 text-right text-slate-500 dark:text-slate-400">{formatCurrency(item.price)}</td>
+                    <td className="px-6 py-3.5 text-right text-slate-500 dark:text-slate-400">{formatAmount(item.price)}</td>
                     <td className="px-6 py-3.5 text-right font-medium text-slate-700 dark:text-slate-300">
-                      {formatCurrency(parseFloat(item.price) * item.quantity)}
+                      {formatAmount(parseFloat(item.price) * item.quantity)}
                     </td>
                   </tr>
                 ))}
@@ -148,23 +150,23 @@ export default function PublicInvoicePage() {
             <div className="ml-auto max-w-xs space-y-2 text-sm">
               <div className="flex justify-between text-slate-500 dark:text-slate-400">
                 <span>{t('common.subtotal')}</span>
-                <span>{formatCurrency(subtotal)}</span>
+                <span>{formatAmount(subtotal)}</span>
               </div>
               {discountAmount > 0 && (
                 <div className="flex justify-between text-slate-500 dark:text-slate-400">
                   <span>{t('common.discount')}{invoice.discountType === 'PERCENT' ? ` (${discountValue}%)` : ''}</span>
-                  <span>-{formatCurrency(discountAmount)}</span>
+                  <span>-{formatAmount(discountAmount)}</span>
                 </div>
               )}
               {taxAmount > 0 && (
                 <div className="flex justify-between text-slate-500 dark:text-slate-400">
                   <span>{t('common.tax')} ({taxRate}%)</span>
-                  <span>{formatCurrency(taxAmount)}</span>
+                  <span>{formatAmount(taxAmount)}</span>
                 </div>
               )}
               <div className="flex justify-between border-t border-slate-200 dark:border-slate-800 pt-2 text-base font-bold text-slate-900 dark:text-slate-100">
                 <span>{t('common.total')}</span>
-                <span className="text-blue-600">{formatCurrency(total)}</span>
+                <span className="text-blue-600">{formatAmount(total)}</span>
               </div>
             </div>
           </div>
@@ -175,11 +177,39 @@ export default function PublicInvoicePage() {
               <p className="text-sm text-slate-600 dark:text-slate-300 whitespace-pre-wrap">{invoice.notes}</p>
             </div>
           )}
+
+          {invoice.status === 'OVERDUE' && (
+            <div className="border-t border-red-100 dark:border-red-900/40 px-6 py-4 bg-red-50 dark:bg-red-950/30 flex items-start gap-3">
+              <AlertTriangle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-red-700 dark:text-red-400">{t('publicInvoice.overdueTitle')}</p>
+                <p className="text-xs text-red-500 dark:text-red-500 mt-0.5">{t('publicInvoice.overdueBody')}</p>
+              </div>
+            </div>
+          )}
+
+          {invoice.status === 'PAID' && (
+            <div className="border-t border-emerald-100 dark:border-emerald-900/40 px-6 py-4 bg-emerald-50 dark:bg-emerald-950/30 flex items-start gap-3">
+              <CheckCircle2 className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
+              <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">{t('publicInvoice.paidConfirm')}</p>
+            </div>
+          )}
         </div>
 
-        <p className="text-center text-xs text-slate-400 dark:text-slate-500 mt-8">
-          {t('publicInvoice.poweredBy')} <span className="font-medium text-slate-500 dark:text-slate-400">BillFlow</span>
-        </p>
+        <div className="mt-8 flex flex-col items-center gap-2">
+          {company.companyEmail && (
+            <a
+              href={`mailto:${company.companyEmail}`}
+              className="inline-flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+            >
+              <Mail className="h-3.5 w-3.5" />
+              {t('publicInvoice.contactUs')}
+            </a>
+          )}
+          <p className="text-xs text-slate-400 dark:text-slate-500">
+            {t('publicInvoice.poweredBy')} <span className="font-medium text-slate-500 dark:text-slate-400">BillFlow</span>
+          </p>
+        </div>
       </div>
     </div>
   );

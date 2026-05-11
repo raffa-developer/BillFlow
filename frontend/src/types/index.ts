@@ -5,12 +5,17 @@ export interface User {
   id: number;
   email: string;
   createdAt: string;
+  currency: string;
+  baseCurrency: string;
   companyName?: string | null;
   companyAddress?: string | null;
   companyVat?: string | null;
   companyEmail?: string | null;
   companyPhone?: string | null;
   companyLogoUrl?: string | null;
+  defaultTaxRate?: number | null;
+  defaultPaymentDays?: number | null;
+  invoicePrefix?: string | null;
 }
 
 export interface Client {
@@ -28,6 +33,7 @@ export interface Product {
   name: string;
   price: string;
   description?: string;
+  invoiceCount?: number;
 }
 
 export interface InvoiceItem {
@@ -77,6 +83,15 @@ export interface CreateInvoicePayload {
   discountValue?: number;
   taxRate?: number;
   notes?: string;
+}
+
+export interface Payment {
+  id: number;
+  invoiceId: number;
+  amount: string;
+  paidAt: string;
+  method: string;
+  reference?: string | null;
 }
 
 export interface UpdateInvoicePayload {

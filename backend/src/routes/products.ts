@@ -21,12 +21,18 @@ const updateProductSchema = createProductSchema.partial().refine(
 );
 
 const PRODUCT_COLS = ["name", "price", "description"] as const;
+const PRODUCT_BASE_SYNC = new Set(["price"]);
 
 productsRouter.get("/", async (req, res, next) => {
   try {
     const { rows } = await pool.query(
-      `SELECT id, "userId", name, price, description
-       FROM "Product" WHERE "userId" = $1 ORDER BY id DESC`,
+      `SELECT p.id, p."userId", p.name, p.price, p.description,
+              COUNT(ii.id)::int AS "invoiceCount"
+       FROM "Product" p
+       LEFT JOIN "InvoiceItem" ii ON ii."productId" = p.id
+       WHERE p."userId" = $1
+       GROUP BY p.id
+       ORDER BY p.id DESC`,
       [req.user!.id]
     );
     return res.json({ products: rows });
@@ -39,8 +45,8 @@ productsRouter.post("/", validateBody(createProductSchema), async (req, res, nex
   try {
     const body = req.body as z.infer<typeof createProductSchema>;
     const { rows: [product] } = await pool.query(
-      `INSERT INTO "Product" ("userId", name, price, description)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO "Product" ("userId", name, price, "basePrice", description)
+       VALUES ($1, $2, $3, $3, $4)
        RETURNING *`,
       [req.user!.id, body.name, body.price, body.description ?? null]
     );
@@ -59,7 +65,14 @@ productsRouter.put("/:id", validateBody(updateProductSchema), async (req, res, n
     const fields: string[] = [];
     const values: unknown[] = [];
     for (const col of PRODUCT_COLS) {
-      if (col in body) { fields.push(col); values.push(body[col]); }
+      if (col in body) {
+        fields.push(col);
+        values.push(body[col]);
+        if (PRODUCT_BASE_SYNC.has(col)) {
+          fields.push(`base${col.charAt(0).toUpperCase() + col.slice(1)}`);
+          values.push(body[col]);
+        }
+      }
     }
     if (fields.length === 0) throw new AppError("No fields to update", 400);
 

@@ -6,7 +6,7 @@ import { clientsApi, invoicesApi } from '../lib/api';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { StatusBadge } from '../components/ui/Badge';
-import { formatCurrency, formatDate } from '../lib/utils';
+import { formatDate } from '../lib/utils';
 import { useCurrency } from '../contexts/CurrencyContext';
 
 export default function ClientDetailPage() {
@@ -143,7 +143,7 @@ export default function ClientDetailPage() {
                     <td className="px-5 py-3.5 text-slate-500 dark:text-slate-400">{formatDate(inv.dateIssued)}</td>
                     <td className="px-5 py-3.5 text-slate-500 dark:text-slate-400">{formatDate(inv.dueDate)}</td>
                     <td className="px-5 py-3.5"><StatusBadge status={inv.status} /></td>
-                    <td className="px-5 py-3.5 text-right font-semibold text-slate-700 dark:text-slate-300">{formatCurrency(inv.total)}</td>
+                    <td className="px-5 py-3.5 text-right font-semibold text-slate-700 dark:text-slate-300">{formatAmount(inv.total)}</td>
                   </tr>
                 ))}
               </tbody>

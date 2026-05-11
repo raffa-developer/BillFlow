@@ -1,15 +1,17 @@
-import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Plus, Trash2 } from 'lucide-react';
-import { clientsApi, productsApi, invoicesApi } from '../lib/api';
+import { clientsApi, productsApi, invoicesApi, meApi } from '../lib/api';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
-import { formatCurrency } from '../lib/utils';
+import { useCurrency } from '../contexts/CurrencyContext';
 import type { CreateInvoiceItem, DiscountType } from '../types';
+
+const DRAFT_KEY = 'billflow_new_invoice_draft';
 
 interface ItemRow extends CreateInvoiceItem {
   _key: number;
@@ -20,19 +22,79 @@ const newRow = (): ItemRow => ({ _key: ++keyCounter, description: '', quantity: 
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
+interface InvoiceTemplate {
+  clientId: number;
+  items: CreateInvoiceItem[];
+  discountType: DiscountType;
+  discountValue: number;
+  taxRate: number;
+  notes: string;
+}
+
 export default function NewInvoicePage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
   const qc = useQueryClient();
-  const [clientId, setClientId] = useState('');
-  const [dateIssued, setDateIssued] = useState(new Date().toISOString().slice(0, 10));
-  const [dueDate, setDueDate] = useState('');
-  const [items, setItems] = useState<ItemRow[]>([newRow()]);
-  const [discountType, setDiscountType] = useState<DiscountType>('NONE');
-  const [discountValue, setDiscountValue] = useState(0);
-  const [taxRate, setTaxRate] = useState(0);
-  const [notes, setNotes] = useState('');
+  const { formatAmount } = useCurrency();
+
+  const template = (location.state as { template?: InvoiceTemplate } | null)?.template;
+
+  const { data: meData } = useQuery({ queryKey: ['me'], queryFn: () => meApi.get() });
+  const userDefaults = meData?.data.user;
+
+  const loadDraft = () => {
+    if (template) return null;
+    try { return JSON.parse(localStorage.getItem(DRAFT_KEY) ?? 'null'); } catch { return null; }
+  };
+  const draft = loadDraft();
+
+  const today = new Date().toISOString().slice(0, 10);
+  const defaultDueDays = userDefaults?.defaultPaymentDays ?? 30;
+  const defaultDue = (() => {
+    const d = new Date(); d.setDate(d.getDate() + defaultDueDays); return d.toISOString().slice(0, 10);
+  })();
+
+  const [clientId, setClientId] = useState<string>(draft?.clientId ?? (template ? String(template.clientId) : ''));
+  const [dateIssued, setDateIssued] = useState<string>(draft?.dateIssued ?? today);
+  const [dueDate, setDueDate] = useState<string>(draft?.dueDate ?? (template ? '' : defaultDue));
+  const [items, setItems] = useState<ItemRow[]>(
+    draft?.items
+      ? draft.items.map((i: CreateInvoiceItem) => ({ ...i, _key: ++keyCounter }))
+      : template
+      ? template.items.map(i => ({ ...i, _key: ++keyCounter }))
+      : [newRow()]
+  );
+  const [discountType, setDiscountType] = useState<DiscountType>(draft?.discountType ?? template?.discountType ?? 'NONE');
+  const [discountValue, setDiscountValue] = useState<number>(draft?.discountValue ?? template?.discountValue ?? 0);
+  const [taxRate, setTaxRate] = useState<number>(draft?.taxRate ?? template?.taxRate ?? (userDefaults?.defaultTaxRate ?? 0));
+  const [notes, setNotes] = useState<string>(draft?.notes ?? template?.notes ?? '');
   const [error, setError] = useState('');
+  const [hasDraft, setHasDraft] = useState(!!draft);
+
+  const saveDraft = useCallback(() => {
+    if (template) return;
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({
+      clientId, dateIssued, dueDate,
+      items: items.map(({ _key: _, ...i }) => i),
+      discountType, discountValue, taxRate, notes,
+    }));
+  }, [clientId, dateIssued, dueDate, items, discountType, discountValue, taxRate, notes, template]);
+
+  useEffect(() => { saveDraft(); }, [saveDraft]);
+
+  const discardDraft = () => {
+    localStorage.removeItem(DRAFT_KEY);
+    setHasDraft(false);
+    setClientId('');
+    setDateIssued(today);
+    setDueDate(defaultDue);
+    setItems([newRow()]);
+    setDiscountType('NONE');
+    setDiscountValue(0);
+    setTaxRate(userDefaults?.defaultTaxRate ?? 0);
+    setNotes('');
+  };
 
   const { data: clientsData } = useQuery({ queryKey: ['clients'], queryFn: () => clientsApi.list() });
   const { data: productsData } = useQuery({ queryKey: ['products'], queryFn: () => productsApi.list() });
@@ -56,15 +118,16 @@ export default function NewInvoicePage() {
         clientId: parseInt(clientId),
         dateIssued: new Date(dateIssued).toISOString(),
         dueDate: new Date(dueDate).toISOString(),
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        items: items.map(({ _key, ...item }) => item),
+        items: items.map(({ _key, ...item }) => ({ ...item, productId: item.productId ?? undefined })),
         discountType,
         discountValue,
         taxRate,
         notes: notes || undefined,
       }),
     onSuccess: (res) => {
+      localStorage.removeItem(DRAFT_KEY);
       qc.invalidateQueries({ queryKey: ['invoices'] });
+      qc.invalidateQueries({ queryKey: ['products'] });
       navigate(`/invoices/${res.data.invoice.id}`);
     },
     onError: (err: { response?: { data?: { message?: string } } }) => {
@@ -96,6 +159,7 @@ export default function NewInvoicePage() {
     setError('');
     if (!clientId) { setError(t('newInvoice.errNoClient')); return; }
     if (!dueDate) { setError(t('newInvoice.errNoDueDate')); return; }
+    if (new Date(dueDate) < new Date(dateIssued)) { setError(t('newInvoice.errDueDateBeforeIssued')); return; }
     if (items.some((i) => !i.description || i.quantity <= 0 || i.price <= 0)) {
       setError(t('newInvoice.errInvalidItems'));
       return;
@@ -109,6 +173,19 @@ export default function NewInvoicePage() {
         <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{t('newInvoice.title')}</h1>
         <p className="text-sm text-slate-500 dark:text-slate-400">{t('newInvoice.subtitle')}</p>
       </div>
+      {template && (
+        <p className="rounded-lg bg-blue-50 dark:bg-blue-950/40 px-3 py-2 text-sm text-blue-700 dark:text-blue-400">
+          {t('newInvoice.clonedFrom')}
+        </p>
+      )}
+      {hasDraft && !template && (
+        <div className="flex items-center justify-between rounded-lg bg-amber-50 dark:bg-amber-950/40 px-3 py-2">
+          <p className="text-sm text-amber-700 dark:text-amber-400">{t('newInvoice.draftRestored')}</p>
+          <button onClick={discardDraft} className="ml-3 text-xs text-amber-600 hover:underline dark:text-amber-400">
+            {t('newInvoice.discardDraft')}
+          </button>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <Card className="p-5 space-y-4">
@@ -133,60 +210,62 @@ export default function NewInvoicePage() {
             </Button>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-4">
             {items.map((item) => (
-              <div key={item._key} className="grid grid-cols-12 gap-2 items-end">
-                <div className="col-span-3">
-                  <Select
-                    label={items.indexOf(item) === 0 ? t('newInvoice.product') : undefined}
-                    value={item.productId?.toString() ?? ''}
-                    onChange={(e) => selectProduct(item._key, e.target.value)}
-                  >
-                    <option value="">{t('newInvoice.freeItem')}</option>
-                    {products.map((p) => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
-                    ))}
-                  </Select>
-                </div>
-                <div className="col-span-4">
-                  <Input
-                    label={items.indexOf(item) === 0 ? t('common.description') : undefined}
-                    value={item.description}
-                    onChange={(e) => updateItem(item._key, 'description', e.target.value)}
-                    placeholder={t('newInvoice.descPlaceholder')}
-                    required
-                  />
-                </div>
-                <div className="col-span-2">
-                  <Input
-                    label={items.indexOf(item) === 0 ? t('common.qty') : undefined}
-                    type="number"
-                    min="1"
-                    value={item.quantity}
-                    onChange={(e) => updateItem(item._key, 'quantity', parseInt(e.target.value) || 1)}
-                  />
-                </div>
-                <div className="col-span-2">
-                  <Input
-                    label={items.indexOf(item) === 0 ? t('products.price') : undefined}
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={item.price || ''}
-                    onChange={(e) => updateItem(item._key, 'price', parseFloat(e.target.value) || 0)}
-                  />
-                </div>
-                <div className="col-span-1 flex justify-end pb-0.5">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="text-red-500 hover:text-red-600"
-                    onClick={() => setItems((p) => p.filter((i) => i._key !== item._key))}
-                    disabled={items.length === 1}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
+              <div key={item._key} className="rounded-lg border border-slate-100 dark:border-slate-800 p-3 sm:border-0 sm:p-0">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-12 sm:items-end">
+                  <div className="col-span-2 sm:col-span-3">
+                    <Select
+                      label={t('newInvoice.product')}
+                      value={item.productId?.toString() ?? ''}
+                      onChange={(e) => selectProduct(item._key, e.target.value)}
+                    >
+                      <option value="">{t('newInvoice.freeItem')}</option>
+                      {products.map((p) => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </Select>
+                  </div>
+                  <div className="col-span-2 sm:col-span-4">
+                    <Input
+                      label={t('common.description')}
+                      value={item.description}
+                      onChange={(e) => updateItem(item._key, 'description', e.target.value)}
+                      placeholder={t('newInvoice.descPlaceholder')}
+                      required
+                    />
+                  </div>
+                  <div className="col-span-1 sm:col-span-2">
+                    <Input
+                      label={t('common.qty')}
+                      type="number"
+                      min="1"
+                      value={item.quantity}
+                      onChange={(e) => updateItem(item._key, 'quantity', parseInt(e.target.value) || 1)}
+                    />
+                  </div>
+                  <div className="col-span-1 sm:col-span-2">
+                    <Input
+                      label={t('products.price')}
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={item.price || ''}
+                      onChange={(e) => updateItem(item._key, 'price', parseFloat(e.target.value) || 0)}
+                    />
+                  </div>
+                  <div className="col-span-2 flex justify-end sm:col-span-1 pb-0.5">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-500 hover:text-red-600"
+                      onClick={() => setItems((p) => p.filter((i) => i._key !== item._key))}
+                      disabled={items.length === 1}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -232,25 +311,25 @@ export default function NewInvoicePage() {
           <dl className="space-y-1.5 text-sm">
             <div className="flex justify-between">
               <dt className="text-slate-500 dark:text-slate-400">{t('common.subtotal')}</dt>
-              <dd className="text-slate-700 dark:text-slate-300">{formatCurrency(totals.subtotal)}</dd>
+              <dd className="text-slate-700 dark:text-slate-300">{formatAmount(totals.subtotal)}</dd>
             </div>
             {totals.discountAmount > 0 && (
               <div className="flex justify-between">
                 <dt className="text-slate-500 dark:text-slate-400">
                   {t('common.discount')}{discountType === 'PERCENT' ? ` (${discountValue}%)` : ''}
                 </dt>
-                <dd className="text-slate-700 dark:text-slate-300">-{formatCurrency(totals.discountAmount)}</dd>
+                <dd className="text-slate-700 dark:text-slate-300">-{formatAmount(totals.discountAmount)}</dd>
               </div>
             )}
             {totals.taxAmount > 0 && (
               <div className="flex justify-between">
                 <dt className="text-slate-500 dark:text-slate-400">{t('common.tax')} ({taxRate}%)</dt>
-                <dd className="text-slate-700 dark:text-slate-300">{formatCurrency(totals.taxAmount)}</dd>
+                <dd className="text-slate-700 dark:text-slate-300">{formatAmount(totals.taxAmount)}</dd>
               </div>
             )}
             <div className="flex justify-between border-t border-slate-200 dark:border-slate-800 pt-2 mt-2">
               <dt className="font-semibold text-slate-900 dark:text-slate-100">{t('common.total')}</dt>
-              <dd className="text-xl font-bold text-slate-900 dark:text-slate-100">{formatCurrency(totals.total)}</dd>
+              <dd className="text-xl font-bold text-slate-900 dark:text-slate-100">{formatAmount(totals.total)}</dd>
             </div>
           </dl>
         </Card>

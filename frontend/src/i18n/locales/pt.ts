@@ -137,6 +137,11 @@ const pt: Translations = {
     generateLinkFirst: 'Envie a fatura para gerar o link público.',
     errorPdf: 'Erro ao gerar PDF.',
     errorSend: 'Erro ao enviar email.',
+    remind: 'Lembrete',
+    clone: 'Duplicar',
+    remindTitle: 'Enviar lembrete de pagamento',
+    remindDescription: 'Um email de lembrete será enviado ao cliente com os detalhes da fatura.',
+    sendReminder: 'Enviar lembrete',
   },
   newInvoice: {
     title: 'Nova fatura',
@@ -165,6 +170,10 @@ const pt: Translations = {
     errNoDueDate: 'Informe a data de vencimento.',
     errInvalidItems: 'Preencha todos os itens corretamente.',
     errCreate: 'Erro ao criar fatura.',
+    errDueDateBeforeIssued: 'A data de vencimento não pode ser anterior à data de emissão.',
+    clonedFrom: 'Pré-preenchido de uma fatura duplicada. Atualize as datas e revise antes de criar.',
+    draftRestored: 'Rascunho restaurado. O seu trabalho anterior foi carregado.',
+    discardDraft: 'Descartar rascunho',
   },
   reports: {
     title: 'Relatórios',
@@ -239,6 +248,11 @@ const pt: Translations = {
     errorSave: 'Erro ao guardar.',
     errorEmail: 'Erro ao atualizar email.',
     errorPassword: 'Erro ao alterar palavra-passe.',
+    defaultsSection: 'Padrões de Fatura',
+    defaultsDescription: 'Estes valores são pré-preenchidos ao criar uma nova fatura.',
+    defaultTaxRate: 'IVA padrão (%)',
+    defaultPaymentDays: 'Prazo de pagamento (dias)',
+    invoicePrefix: 'Prefixo da fatura',
   },
   publicInvoice: {
     invoice: 'Fatura',
@@ -251,6 +265,10 @@ const pt: Translations = {
     invalidLink: 'O link pode ter expirado ou ser inválido.',
     poweredBy: 'Fatura criada com',
     vatId: 'NIF',
+    overdueTitle: 'Esta fatura está em atraso',
+    overdueBody: 'Por favor, entre em contato para efetuar o pagamento.',
+    paidConfirm: 'Esta fatura foi paga. Obrigado!',
+    contactUs: 'Contacte-nos',
   },
   auth: {
     login: {

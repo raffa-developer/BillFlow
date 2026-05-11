@@ -50,15 +50,15 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <CurrencyProvider>
+        <AuthProvider>
           <ToastProvider>
-            <AuthProvider>
+            <CurrencyProvider>
               <BrowserRouter>
                 <AppRoutes />
               </BrowserRouter>
-            </AuthProvider>
+            </CurrencyProvider>
           </ToastProvider>
-        </CurrencyProvider>
+        </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

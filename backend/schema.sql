@@ -17,7 +17,11 @@ CREATE TABLE "User" (
   "companyEmail"   TEXT,
   "companyPhone"   TEXT,
   "companyLogoUrl" TEXT,
-  "invoiceCounter" INTEGER     NOT NULL DEFAULT 0
+  "invoiceCounter"      INTEGER      NOT NULL DEFAULT 0,
+  "currency"            TEXT         NOT NULL DEFAULT 'EUR',
+  "defaultTaxRate"      DECIMAL(5,2) NOT NULL DEFAULT 0,
+  "defaultPaymentDays"  INTEGER      NOT NULL DEFAULT 30,
+  "invoicePrefix"       TEXT         NOT NULL DEFAULT 'INV'
 );
 
 -- Clients
@@ -75,6 +79,17 @@ CREATE TABLE "InvoiceItem" (
 );
 CREATE INDEX "InvoiceItem_invoiceId_idx" ON "InvoiceItem"("invoiceId");
 CREATE INDEX "InvoiceItem_productId_idx" ON "InvoiceItem"("productId");
+
+-- Payments
+CREATE TABLE "Payment" (
+  "id"        SERIAL          PRIMARY KEY,
+  "invoiceId" INTEGER         NOT NULL REFERENCES "Invoice"("id") ON DELETE CASCADE,
+  "amount"    DECIMAL(12, 2)  NOT NULL,
+  "paidAt"    TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
+  "method"    TEXT            NOT NULL DEFAULT 'other',
+  "reference" TEXT
+);
+CREATE INDEX "Payment_invoiceId_idx" ON "Payment"("invoiceId");
 
 -- Password reset tokens
 CREATE TABLE "PasswordResetToken" (

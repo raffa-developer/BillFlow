@@ -1,12 +1,21 @@
 import { Router } from "express";
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
+import rateLimit from "express-rate-limit";
 import { pool } from "../db/pool";
 import { validateBody } from "../middleware/validate";
 import { AppError } from "../utils/errors";
 import { hashPassword, verifyPassword } from "../utils/password";
 import { signToken } from "../utils/jwt";
 import { requireAuth } from "../middleware/auth";
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Too many attempts, please try again later." },
+});
 
 export const authRouter = Router();
 
@@ -41,7 +50,7 @@ authRouter.post("/register", validateBody(registerSchema), async (req, res, next
   }
 });
 
-authRouter.post("/login", validateBody(loginSchema), async (req, res, next) => {
+authRouter.post("/login", authLimiter, validateBody(loginSchema), async (req, res, next) => {
   try {
     const { email, password } = req.body as z.infer<typeof loginSchema>;
 
@@ -67,7 +76,7 @@ authRouter.get("/me", requireAuth, (req, res) => {
 
 const forgotSchema = z.object({ email: emailSchema });
 
-authRouter.post("/forgot", validateBody(forgotSchema), async (req, res, next) => {
+authRouter.post("/forgot", authLimiter, validateBody(forgotSchema), async (req, res, next) => {
   try {
     const { email } = req.body as z.infer<typeof forgotSchema>;
 
@@ -83,7 +92,7 @@ authRouter.post("/forgot", validateBody(forgotSchema), async (req, res, next) =>
         `INSERT INTO "PasswordResetToken" ("userId", token, "expiresAt") VALUES ($1, $2, $3)`,
         [user.id, token, expiresAt]
       );
-      console.log(`[password-reset] /reset/${token} (user ${user.id})`);
+
     }
 
     res.json({ ok: true });

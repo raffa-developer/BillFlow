@@ -137,6 +137,11 @@ const fr: Translations = {
     generateLinkFirst: 'Envoyez la facture pour générer le lien public.',
     errorPdf: 'Erreur lors de la génération du PDF.',
     errorSend: "Erreur lors de l'envoi de l'e-mail.",
+    remind: 'Rappel',
+    clone: 'Dupliquer',
+    remindTitle: 'Envoyer un rappel de paiement',
+    remindDescription: 'Un e-mail de rappel sera envoyé au client avec les détails de la facture.',
+    sendReminder: 'Envoyer le rappel',
   },
   newInvoice: {
     title: 'Nouvelle facture',
@@ -165,6 +170,10 @@ const fr: Translations = {
     errNoDueDate: "Saisissez la date d'échéance.",
     errInvalidItems: 'Remplissez tous les articles correctement.',
     errCreate: 'Erreur lors de la création de la facture.',
+    errDueDateBeforeIssued: "La date d'échéance ne peut pas être antérieure à la date d'émission.",
+    clonedFrom: "Pré-rempli depuis une facture dupliquée. Mettez à jour les dates et vérifiez avant de créer.",
+    draftRestored: 'Brouillon restauré. Votre travail précédent a été chargé.',
+    discardDraft: 'Supprimer le brouillon',
   },
   reports: {
     title: 'Rapports',
@@ -239,6 +248,11 @@ const fr: Translations = {
     errorSave: 'Erreur lors de la sauvegarde.',
     errorEmail: "Erreur lors de la mise à jour de l'e-mail.",
     errorPassword: 'Erreur lors du changement de mot de passe.',
+    defaultsSection: 'Valeurs par défaut de la facture',
+    defaultsDescription: 'Ces valeurs sont pré-remplies lors de la création d\'une nouvelle facture.',
+    defaultTaxRate: 'TVA par défaut (%)',
+    defaultPaymentDays: 'Délai de paiement (jours)',
+    invoicePrefix: 'Préfixe de facture',
   },
   publicInvoice: {
     invoice: 'Facture',
@@ -251,6 +265,10 @@ const fr: Translations = {
     invalidLink: 'Le lien a peut-être expiré ou est invalide.',
     poweredBy: 'Facture créée avec',
     vatId: 'TVA',
+    overdueTitle: 'Cette facture est en retard',
+    overdueBody: 'Veuillez nous contacter pour organiser le paiement.',
+    paidConfirm: 'Cette facture a été réglée. Merci !',
+    contactUs: 'Nous contacter',
   },
   auth: {
     login: {

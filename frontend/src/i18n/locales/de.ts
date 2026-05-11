@@ -137,6 +137,11 @@ const de: Translations = {
     generateLinkFirst: 'Senden Sie die Rechnung, um den öffentlichen Link zu generieren.',
     errorPdf: 'Fehler beim Erstellen des PDFs.',
     errorSend: 'Fehler beim Senden der E-Mail.',
+    remind: 'Erinnern',
+    clone: 'Duplizieren',
+    remindTitle: 'Zahlungserinnerung senden',
+    remindDescription: 'Eine Erinnerungs-E-Mail wird mit den Rechnungsdetails an den Kunden gesendet.',
+    sendReminder: 'Erinnerung senden',
   },
   newInvoice: {
     title: 'Neue Rechnung',
@@ -165,6 +170,10 @@ const de: Translations = {
     errNoDueDate: 'Geben Sie das Fälligkeitsdatum ein.',
     errInvalidItems: 'Füllen Sie alle Positionen korrekt aus.',
     errCreate: 'Fehler beim Erstellen der Rechnung.',
+    errDueDateBeforeIssued: 'Das Fälligkeitsdatum darf nicht vor dem Ausstellungsdatum liegen.',
+    clonedFrom: 'Aus einer duplizierten Rechnung vorausgefüllt. Aktualisieren Sie die Daten und überprüfen Sie vor dem Erstellen.',
+    draftRestored: 'Entwurf wiederhergestellt. Ihre vorherige Arbeit wurde geladen.',
+    discardDraft: 'Entwurf verwerfen',
   },
   reports: {
     title: 'Berichte',
@@ -239,6 +248,11 @@ const de: Translations = {
     errorSave: 'Fehler beim Speichern.',
     errorEmail: 'Fehler beim Aktualisieren der E-Mail.',
     errorPassword: 'Fehler beim Ändern des Passworts.',
+    defaultsSection: 'Rechnungsstandards',
+    defaultsDescription: 'Diese Werte werden beim Erstellen einer neuen Rechnung vorausgefüllt.',
+    defaultTaxRate: 'Standard-MwSt. (%)',
+    defaultPaymentDays: 'Zahlungsfrist (Tage)',
+    invoicePrefix: 'Rechnungspräfix',
   },
   publicInvoice: {
     invoice: 'Rechnung',
@@ -251,6 +265,10 @@ const de: Translations = {
     invalidLink: 'Der Link ist möglicherweise abgelaufen oder ungültig.',
     poweredBy: 'Rechnung erstellt mit',
     vatId: 'USt-IdNr.',
+    overdueTitle: 'Diese Rechnung ist überfällig',
+    overdueBody: 'Bitte kontaktieren Sie uns zur Zahlungsvereinbarung.',
+    paidConfirm: 'Diese Rechnung wurde bezahlt. Danke!',
+    contactUs: 'Kontakt',
   },
   auth: {
     login: {

@@ -4,6 +4,7 @@ import type {
   Client,
   Product,
   Invoice,
+  Payment,
   CreateInvoicePayload,
   UpdateInvoicePayload,
 } from '../types';
@@ -53,6 +54,9 @@ type CompanyInput = {
   companyEmail?: string | null;
   companyPhone?: string | null;
   companyLogoUrl?: string | null;
+  defaultTaxRate?: number;
+  defaultPaymentDays?: number;
+  invoicePrefix?: string;
 };
 
 export const meApi = {
@@ -63,6 +67,8 @@ export const meApi = {
     api.put<{ user: User; token: string }>('/me/email', { email, currentPassword }),
   updatePassword: (currentPassword: string, newPassword: string) =>
     api.put<{ ok: true }>('/me/password', { currentPassword, newPassword }),
+  updateCurrency: (currency: string, rate: number) =>
+    api.put<{ user: User }>('/me/currency', { currency, rate }),
 };
 
 // Clients
@@ -97,6 +103,10 @@ export const invoicesApi = {
   update: (id: number, data: UpdateInvoicePayload) =>
     api.put<{ invoice: Invoice }>(`/invoices/${id}`, data),
   remove: (id: number) => api.delete(`/invoices/${id}`),
+  bulkMarkPaid: (ids: number[]) =>
+    api.post<{ updated: number }>('/invoices/bulk/mark-paid', { ids }),
+  bulkDelete: (ids: number[]) =>
+    api.post<{ deleted: number }>('/invoices/bulk/delete', { ids }),
   pdfUrl: (id: number) => {
     const token = localStorage.getItem('token');
     return `/api/invoices/${id}/pdf${token ? `?_t=${encodeURIComponent(token)}` : ''}`;
@@ -108,6 +118,10 @@ export const invoicesApi = {
     ),
   downloadPdf: (id: number) =>
     api.get(`/invoices/${id}/pdf`, { responseType: 'blob' }),
+  getPayments: (id: number) =>
+    api.get<{ payments: Payment[] }>(`/invoices/${id}/payments`),
+  recordPayment: (id: number, data: { amount?: number; paidAt?: string; method: string; reference?: string }) =>
+    api.post<{ payment: Payment }>(`/invoices/${id}/payments`, data),
 };
 
 // Public invoice (no auth)

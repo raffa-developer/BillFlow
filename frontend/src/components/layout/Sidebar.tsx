@@ -33,7 +33,7 @@ interface SidebarProps {
 export function Sidebar({ onClose }: SidebarProps) {
   const { t, i18n } = useTranslation();
   const { logout, user } = useAuth();
-  const { currency, setCurrency } = useCurrency();
+  const { currency, changeCurrency, converting } = useCurrency();
   const location = useLocation();
 
   const [collapsed, setCollapsed] = useState(
@@ -158,13 +158,20 @@ export function Sidebar({ onClose }: SidebarProps) {
 
             {/* Currency */}
             <div className="relative">
-              <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[11px] font-bold text-slate-400">
-                {selectedCurrency.symbol}
-              </span>
+              {converting ? (
+                <div className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2">
+                  <div className="h-3 w-3 animate-spin rounded-full border border-blue-500 border-t-transparent" />
+                </div>
+              ) : (
+                <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[11px] font-bold text-slate-400">
+                  {selectedCurrency.symbol}
+                </span>
+              )}
               <select
                 value={currency}
-                onChange={e => setCurrency(e.target.value as typeof currency)}
-                className="h-7 w-full appearance-none rounded-md bg-slate-900 pl-6 pr-1 text-xs font-medium text-slate-300 border border-slate-800 focus:border-blue-600 focus:outline-none cursor-pointer hover:bg-slate-800 transition-colors"
+                disabled={converting}
+                onChange={e => changeCurrency(e.target.value as typeof currency)}
+                className="h-7 w-full appearance-none rounded-md bg-slate-900 pl-6 pr-1 text-xs font-medium text-slate-300 border border-slate-800 focus:border-blue-600 focus:outline-none cursor-pointer hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {currencies.map(c => (
                   <option key={c.code} value={c.code}>{c.label}</option>

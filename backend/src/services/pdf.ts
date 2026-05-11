@@ -31,31 +31,47 @@ const LINE = "#e2e8f0";
 
 const fmt = (n: number | string | { toString(): string }) => {
   const v = typeof n === "number" ? n : Number(n.toString());
-  return new Intl.NumberFormat("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v);
+  return new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v);
 };
 
 const fmtDate = (d: Date) =>
-  new Intl.DateTimeFormat("pt-PT", { year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
+  new Intl.DateTimeFormat("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
 
-export function renderInvoicePDF(invoice: InvoiceWithRelations): Readable {
+export function renderInvoicePDF(invoice: InvoiceWithRelations, logoBuffer?: Buffer | null): Readable {
   const doc = new PDFDocument({ size: "A4", margin: 50 });
   const { user, client, items } = invoice;
 
-  // Header
-  doc
-    .fillColor(TEXT)
-    .fontSize(24)
-    .font("Helvetica-Bold")
-    .text(user.companyName ?? "BillFlow", 50, 50);
-
-  if (user.companyAddress) {
+  // Header — logo or company name
+  if (logoBuffer) {
+    try {
+      doc.image(logoBuffer, 50, 50, { fit: [120, 45] });
+    } catch {
+      // logo render failed, fall through to text
+    }
+    doc
+      .fillColor(TEXT)
+      .fontSize(12)
+      .font("Helvetica-Bold")
+      .text(user.companyName ?? "BillFlow", 50, 100);
     doc
       .fontSize(9)
       .font("Helvetica")
-      .fillColor(MUTED)
-      .text(user.companyAddress, 50, 78, { width: 250 });
+      .fillColor(MUTED);
+    if (user.companyAddress) doc.text(user.companyAddress, 50, 115, { width: 250 });
+  } else {
+    doc
+      .fillColor(TEXT)
+      .fontSize(24)
+      .font("Helvetica-Bold")
+      .text(user.companyName ?? "BillFlow", 50, 50);
+    doc
+      .fontSize(9)
+      .font("Helvetica")
+      .fillColor(MUTED);
+    if (user.companyAddress) doc.text(user.companyAddress, 50, 78, { width: 250 });
   }
-  if (user.companyVat) doc.text(`NIF: ${user.companyVat}`);
+
+  if (user.companyVat) doc.text(`VAT No.: ${user.companyVat}`);
   if (user.companyEmail) doc.text(user.companyEmail);
   if (user.companyPhone) doc.text(user.companyPhone);
 
@@ -64,7 +80,7 @@ export function renderInvoicePDF(invoice: InvoiceWithRelations): Readable {
     .fillColor(PRIMARY)
     .fontSize(28)
     .font("Helvetica-Bold")
-    .text("FATURA", 350, 50, { align: "right", width: 195 });
+    .text("INVOICE", 350, 50, { align: "right", width: 195 });
 
   doc
     .fontSize(10)
@@ -76,11 +92,11 @@ export function renderInvoicePDF(invoice: InvoiceWithRelations): Readable {
     .fontSize(9)
     .font("Helvetica")
     .fillColor(MUTED)
-    .text(`Emitida: ${fmtDate(invoice.dateIssued)}`, 350, 102, { align: "right", width: 195 })
-    .text(`Vencimento: ${fmtDate(invoice.dueDate)}`, 350, 116, { align: "right", width: 195 });
+    .text(`Issued: ${fmtDate(invoice.dateIssued)}`, 350, 102, { align: "right", width: 195 })
+    .text(`Due: ${fmtDate(invoice.dueDate)}`, 350, 116, { align: "right", width: 195 });
 
   // Status pill
-  const statusLabel = ({ PENDING: "PENDENTE", PAID: "PAGA", OVERDUE: "VENCIDA" } as Record<string, string>)[invoice.status] ?? invoice.status;
+  const statusLabel = ({ PENDING: "PENDING", PAID: "PAID", OVERDUE: "OVERDUE" } as Record<string, string>)[invoice.status] ?? invoice.status;
   const statusColor = ({ PENDING: "#eab308", PAID: "#16a34a", OVERDUE: "#dc2626" } as Record<string, string>)[invoice.status] ?? "#64748b";
   doc
     .roundedRect(465, 132, 80, 18, 4)
@@ -95,7 +111,7 @@ export function renderInvoicePDF(invoice: InvoiceWithRelations): Readable {
     .fillColor(MUTED)
     .fontSize(8)
     .font("Helvetica-Bold")
-    .text("FATURAR PARA", 50, 175);
+    .text("BILL TO", 50, 175);
 
   doc
     .fillColor(TEXT)
@@ -121,9 +137,9 @@ export function renderInvoicePDF(invoice: InvoiceWithRelations): Readable {
     .fillColor(MUTED)
     .fontSize(8)
     .font("Helvetica-Bold")
-    .text("DESCRIÇÃO", 50, tableTop + 8)
-    .text("QTD", 350, tableTop + 8, { width: 50, align: "right" })
-    .text("PREÇO", 405, tableTop + 8, { width: 60, align: "right" })
+    .text("DESCRIPTION", 50, tableTop + 8)
+    .text("QTY", 350, tableTop + 8, { width: 50, align: "right" })
+    .text("PRICE", 405, tableTop + 8, { width: 60, align: "right" })
     .text("TOTAL", 470, tableTop + 8, { width: 75, align: "right" });
 
   doc
@@ -178,12 +194,12 @@ export function renderInvoicePDF(invoice: InvoiceWithRelations): Readable {
   if (invoice.discountType !== "NONE" && discountValue > 0) {
     const subtotal = Number(invoice.subtotal);
     const dAmt = invoice.discountType === "PERCENT" ? (subtotal * discountValue) / 100 : discountValue;
-    const lbl = invoice.discountType === "PERCENT" ? `Desconto (${discountValue}%)` : "Desconto";
+    const lbl = invoice.discountType === "PERCENT" ? `Discount (${discountValue}%)` : "Discount";
     row(lbl, `-${fmt(dAmt)}`);
   }
 
   if (Number(invoice.taxRate) > 0) {
-    row(`IVA (${invoice.taxRate}%)`, fmt(invoice.taxAmount));
+    row(`Tax (${invoice.taxRate}%)`, fmt(invoice.taxAmount));
   }
 
   doc
@@ -201,7 +217,7 @@ export function renderInvoicePDF(invoice: InvoiceWithRelations): Readable {
       .fillColor(MUTED)
       .fontSize(8)
       .font("Helvetica-Bold")
-      .text("NOTAS", 50, ty + 20);
+      .text("NOTES", 50, ty + 20);
     doc
       .fillColor(TEXT)
       .fontSize(9)
@@ -215,7 +231,7 @@ export function renderInvoicePDF(invoice: InvoiceWithRelations): Readable {
     .fontSize(8)
     .font("Helvetica")
     .text(
-      `Fatura gerada em ${fmtDate(new Date())} · BillFlow`,
+      `Invoice generated on ${fmtDate(new Date())} · BillFlow`,
       50,
       doc.page.height - 60,
       { align: "center", width: 495 }

@@ -83,11 +83,25 @@ clientsRouter.put("/:id", validateBody(updateClientSchema), async (req, res, nex
 clientsRouter.delete("/:id", async (req, res, next) => {
   try {
     const id = parseIdParam(req.params.id);
-    const { rowCount } = await pool.query(
-      `DELETE FROM "Client" WHERE id = $1 AND "userId" = $2`,
+
+    const { rows: [client] } = await pool.query(
+      `SELECT id FROM "Client" WHERE id = $1 AND "userId" = $2`,
       [id, req.user!.id]
     );
-    if (!rowCount) throw new AppError("Client not found", 404);
+    if (!client) throw new AppError("Client not found", 404);
+
+    const { rows: [{ count }] } = await pool.query(
+      `SELECT COUNT(*)::int AS count FROM "Invoice" WHERE "clientId" = $1`,
+      [id]
+    );
+    if (count > 0) {
+      throw new AppError(
+        `Cannot delete this client: they have ${count} invoice(s). Delete the invoices first.`,
+        409
+      );
+    }
+
+    await pool.query(`DELETE FROM "Client" WHERE id = $1`, [id]);
     return res.status(204).send();
   } catch (err) {
     return next(err);

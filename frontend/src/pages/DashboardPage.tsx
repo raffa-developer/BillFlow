@@ -308,7 +308,10 @@ export default function DashboardPage() {
               <Link
                 key={inv.id}
                 to={`/invoices/${inv.id}`}
-                className="flex items-center gap-4 px-5 py-3.5 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                className={cn(
+                  'flex items-center gap-4 px-5 py-3.5 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50',
+                  inv.status === 'OVERDUE' && 'border-l-[3px] border-l-red-500 pl-[calc(1.25rem-3px)]'
+                )}
               >
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500 text-xs font-mono font-bold dark:bg-slate-800 dark:text-slate-400">
                   #{inv.id}

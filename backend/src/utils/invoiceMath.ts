@@ -38,6 +38,6 @@ export function calculateInvoiceTotals(input: InvoiceMathInput): InvoiceMathResu
   return { subtotal, discountAmount, taxAmount, total };
 }
 
-export function formatInvoiceNumber(counter: number): string {
-  return `INV-${String(counter).padStart(4, "0")}`;
+export function formatInvoiceNumber(counter: number, prefix = "INV"): string {
+  return `${prefix}-${String(counter).padStart(4, "0")}`;
 }

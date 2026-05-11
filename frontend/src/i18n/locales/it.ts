@@ -137,6 +137,11 @@ const it: Translations = {
     generateLinkFirst: 'Invia la fattura per generare il link pubblico.',
     errorPdf: 'Errore nella generazione del PDF.',
     errorSend: "Errore nell'invio dell'email.",
+    remind: 'Promemoria',
+    clone: 'Duplica',
+    remindTitle: 'Invia promemoria di pagamento',
+    remindDescription: "Un'email di promemoria verrà inviata al cliente con i dettagli della fattura.",
+    sendReminder: 'Invia promemoria',
   },
   newInvoice: {
     title: 'Nuova fattura',
@@ -165,6 +170,10 @@ const it: Translations = {
     errNoDueDate: 'Inserisci la data di scadenza.',
     errInvalidItems: 'Compila tutte le voci correttamente.',
     errCreate: 'Errore nella creazione della fattura.',
+    errDueDateBeforeIssued: 'La data di scadenza non può essere anteriore alla data di emissione.',
+    clonedFrom: 'Pre-compilato da una fattura duplicata. Aggiorna le date e rivedi prima di creare.',
+    draftRestored: 'Bozza ripristinata. Il tuo lavoro precedente è stato caricato.',
+    discardDraft: 'Scarta bozza',
   },
   reports: {
     title: 'Rapporti',
@@ -239,6 +248,11 @@ const it: Translations = {
     errorSave: 'Errore nel salvataggio.',
     errorEmail: "Errore nell'aggiornamento dell'email.",
     errorPassword: 'Errore nel cambio password.',
+    defaultsSection: 'Valori predefiniti fattura',
+    defaultsDescription: 'Questi valori vengono precompilati quando crei una nuova fattura.',
+    defaultTaxRate: 'IVA predefinita (%)',
+    defaultPaymentDays: 'Termini di pagamento (giorni)',
+    invoicePrefix: 'Prefisso fattura',
   },
   publicInvoice: {
     invoice: 'Fattura',
@@ -251,6 +265,10 @@ const it: Translations = {
     invalidLink: 'Il link potrebbe essere scaduto o non valido.',
     poweredBy: 'Fattura creata con',
     vatId: 'P.IVA',
+    overdueTitle: 'Questa fattura è scaduta',
+    overdueBody: 'Si prega di contattarci per concordare il pagamento.',
+    paidConfirm: 'Questa fattura è stata pagata. Grazie!',
+    contactUs: 'Contattaci',
   },
   auth: {
     login: {
