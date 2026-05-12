@@ -16,12 +16,6 @@ interface ClientForm { name: string; email: string; phone: string; address: stri
 const emptyForm: ClientForm = { name: '', email: '', phone: '', address: '' };
 
 type SortKey = 'name_asc' | 'name_desc' | 'newest' | 'oldest';
-const SORT_OPTS: { value: SortKey; label: string }[] = [
-  { value: 'name_asc',  label: 'Name (A–Z)' },
-  { value: 'name_desc', label: 'Name (Z–A)' },
-  { value: 'newest',    label: 'Newest first' },
-  { value: 'oldest',    label: 'Oldest first' },
-];
 
 function applySort(list: Client[], sort: SortKey): Client[] {
   return [...list].sort((a, b) => {
@@ -37,6 +31,13 @@ function applySort(list: Client[], sort: SortKey): Client[] {
 export default function ClientsPage() {
   const { t } = useTranslation();
   const qc = useQueryClient();
+
+  const SORT_OPTS: { value: SortKey; label: string }[] = [
+    { value: 'name_asc',  label: t('clients.sortNameAZ') },
+    { value: 'name_desc', label: t('clients.sortNameZA') },
+    { value: 'newest',    label: t('clients.sortNewest') },
+    { value: 'oldest',    label: t('clients.sortOldest') },
+  ];
   const { toast } = useToast();
 
   const [search, setSearch]           = useState('');
@@ -133,7 +134,7 @@ export default function ClientsPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{t('clients.title')}</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-            {filtered.length} of {all.length} clients
+            {t('clients.countFiltered', { filtered: filtered.length, total: all.length })}
           </p>
         </div>
         <Button onClick={openCreate} className="shrink-0"><Plus className="h-4 w-4" /> {t('clients.new')}</Button>
@@ -146,7 +147,7 @@ export default function ClientsPage() {
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Search by name, email, phone or address…"
+            placeholder={t('clients.search')}
             className="h-9 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-8 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500"
           />
           {search && (
@@ -166,7 +167,7 @@ export default function ClientsPage() {
           )}
         >
           <SlidersHorizontal className="h-3.5 w-3.5" />
-          Filters
+          {t('common.filters')}
           {hasActiveFilters && (
             <span className="flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">
               {[search, hasEmail, hasPhone, hasAddress].filter(Boolean).length}
@@ -186,12 +187,12 @@ export default function ClientsPage() {
       {/* Filter panel */}
       {showFilters && (
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/50">
-          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-3 uppercase tracking-wide">Only show clients with</p>
+          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-3 uppercase tracking-wide">{t('clients.filterOnlyWith')}</p>
           <div className="flex flex-wrap gap-2">
             {([
-              { key: 'hasEmail',   label: 'Email', value: hasEmail,   set: setHasEmail },
-              { key: 'hasPhone',   label: 'Phone', value: hasPhone,   set: setHasPhone },
-              { key: 'hasAddress', label: 'Address', value: hasAddress, set: setHasAddress },
+              { key: 'hasEmail',   label: t('common.email'),   value: hasEmail,   set: setHasEmail },
+              { key: 'hasPhone',   label: t('common.phone'),   value: hasPhone,   set: setHasPhone },
+              { key: 'hasAddress', label: t('common.address'), value: hasAddress, set: setHasAddress },
             ] as const).map(f => (
               <button
                 key={f.key}
@@ -209,7 +210,7 @@ export default function ClientsPage() {
           </div>
           {hasActiveFilters && (
             <button onClick={clearAll} className="mt-3 flex items-center gap-1 text-xs text-slate-500 hover:text-red-500 transition-colors">
-              <X className="h-3 w-3" /> Clear all filters
+              <X className="h-3 w-3" /> {t('common.clearAllFilters')}
             </button>
           )}
         </div>
@@ -226,9 +227,9 @@ export default function ClientsPage() {
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800">
               <Users className="h-6 w-6" />
             </div>
-            <p className="text-sm font-medium">{hasActiveFilters ? 'No clients match your filters' : t('clients.none')}</p>
+            <p className="text-sm font-medium">{hasActiveFilters ? t('clients.noMatch') : t('clients.none')}</p>
             {hasActiveFilters
-              ? <button onClick={clearAll} className="text-xs text-blue-500 hover:underline">Clear filters</button>
+              ? <button onClick={clearAll} className="text-xs text-blue-500 hover:underline">{t('common.clearFilters')}</button>
               : <Button variant="secondary" size="sm" onClick={openCreate}><Plus className="h-3.5 w-3.5" /> {t('clients.addClient')}</Button>
             }
           </div>
@@ -263,7 +264,7 @@ export default function ClientsPage() {
         {totalPages > 1 && (
           <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800 px-5 py-3">
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Page {page} of {totalPages} · {filtered.length} clients
+              {t('clients.paginationInfo', { page, total: totalPages, count: filtered.length })}
             </p>
             <div className="flex items-center gap-1">
               <Button variant="ghost" size="sm" disabled={page === 1} onClick={() => setPage(p => p - 1)}>

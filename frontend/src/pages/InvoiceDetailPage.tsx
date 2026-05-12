@@ -76,10 +76,10 @@ export default function InvoiceDetailPage() {
       setPaymentDate('');
       setPaymentMethod('bank_transfer');
       setPaymentRef('');
-      toast.success('Payment recorded');
+      toast.success(t('invoiceDetail.paymentRecorded'));
     },
     onError: (err: { response?: { data?: { message?: string } } }) =>
-      toast.error(err.response?.data?.message ?? 'Failed to record payment'),
+      toast.error(err.response?.data?.message ?? t('invoiceDetail.paymentFailed')),
   });
 
   const deleteMutation = useMutation({
@@ -99,8 +99,8 @@ export default function InvoiceDetailPage() {
       setSendOpen(false);
       toast.success(
         data.mocked
-          ? `Simulated email to ${data.recipient} (SMTP not configured)`
-          : `Email sent to ${data.recipient}`
+          ? t('invoiceDetail.emailMocked', { recipient: data.recipient })
+          : t('invoiceDetail.emailSent', { recipient: data.recipient })
       );
     },
     onError: (err: { response?: { data?: { message?: string } } }) =>
@@ -166,7 +166,7 @@ export default function InvoiceDetailPage() {
       qc.invalidateQueries({ queryKey: ['invoice', id] });
       qc.invalidateQueries({ queryKey: ['invoices'] });
       setRemindOpen(false);
-      toast.success(data.mocked ? `Simulated reminder to ${data.recipient}` : `Reminder sent to ${data.recipient}`);
+      toast.success(data.mocked ? t('invoiceDetail.reminderMocked', { recipient: data.recipient }) : t('invoiceDetail.reminderSent', { recipient: data.recipient }));
     } catch {
       toast.error(t('invoiceDetail.errorSend'));
     } finally {
@@ -317,7 +317,7 @@ export default function InvoiceDetailPage() {
       {payments.length > 0 && (
         <Card>
           <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800">
-            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Payment history</h2>
+            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">{t('invoiceDetail.paymentHistory')}</h2>
           </div>
           <div className="divide-y divide-slate-100 dark:divide-slate-800">
             {payments.map((p) => (
@@ -374,11 +374,11 @@ export default function InvoiceDetailPage() {
         </div>
       </Modal>
 
-      <Modal open={paymentOpen} onClose={() => setPaymentOpen(false)} title="Record payment">
+      <Modal open={paymentOpen} onClose={() => setPaymentOpen(false)} title={t('invoiceDetail.recordPaymentTitle')}>
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <Input
-              label="Amount"
+              label={t('invoiceDetail.paymentAmount')}
               type="number"
               min="0.01"
               step="0.01"
@@ -386,36 +386,36 @@ export default function InvoiceDetailPage() {
               onChange={(e) => setPaymentAmount(e.target.value)}
             />
             <Input
-              label="Date"
+              label={t('invoiceDetail.paymentDate')}
               type="date"
               value={paymentDate}
               onChange={(e) => setPaymentDate(e.target.value)}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Method</label>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('invoiceDetail.paymentMethod')}</label>
             <select
               value={paymentMethod}
               onChange={(e) => setPaymentMethod(e.target.value)}
               className="h-9 w-full rounded-lg border border-slate-300 px-3 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
             >
-              <option value="bank_transfer">Bank transfer</option>
-              <option value="cash">Cash</option>
-              <option value="card">Card</option>
-              <option value="check">Check</option>
-              <option value="other">Other</option>
+              <option value="bank_transfer">{t('invoiceDetail.paymentMethodBankTransfer')}</option>
+              <option value="cash">{t('invoiceDetail.paymentMethodCash')}</option>
+              <option value="card">{t('invoiceDetail.paymentMethodCard')}</option>
+              <option value="check">{t('invoiceDetail.paymentMethodCheck')}</option>
+              <option value="other">{t('invoiceDetail.paymentMethodOther')}</option>
             </select>
           </div>
           <Input
-            label="Reference (optional)"
+            label={t('invoiceDetail.paymentRef')}
             value={paymentRef}
             onChange={(e) => setPaymentRef(e.target.value)}
-            placeholder="Transaction ID, check number…"
+            placeholder={t('invoiceDetail.paymentRefPlaceholder')}
           />
           <div className="flex justify-end gap-2">
             <Button variant="secondary" onClick={() => setPaymentOpen(false)}>{t('common.cancel')}</Button>
             <Button loading={paymentMutation.isPending} onClick={() => paymentMutation.mutate()}>
-              <CheckCircle className="h-4 w-4" /> Record payment
+              <CheckCircle className="h-4 w-4" /> {t('invoiceDetail.recordPayment')}
             </Button>
           </div>
         </div>

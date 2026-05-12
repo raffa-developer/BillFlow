@@ -76,7 +76,7 @@ export function Sidebar({ onClose }: SidebarProps) {
       <nav className={cn('flex-1 overflow-y-auto py-3 px-2')}>
         {!isCollapsed && (
           <p className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-widest text-slate-600">
-            Menu
+            {t('nav.menu')}
           </p>
         )}
 
@@ -211,7 +211,7 @@ export function Sidebar({ onClose }: SidebarProps) {
                 <div className="absolute bottom-full left-0 right-0 mb-1 rounded-xl border border-slate-800 bg-slate-900 py-1.5 shadow-2xl shadow-black/60 z-50">
                   <div className="border-b border-slate-800 px-3 py-2 mb-1">
                     <p className="truncate text-xs font-medium text-slate-200">{user?.email}</p>
-                    <p className="mt-0.5 text-[10px] text-slate-500">Free plan</p>
+                    <p className="mt-0.5 text-[10px] text-slate-500">{t('nav.freePlan')}</p>
                   </div>
                   <button
                     onClick={() => { logout(); setAccountOpen(false); }}
@@ -234,7 +234,7 @@ export function Sidebar({ onClose }: SidebarProps) {
           )}>
             <button
               onClick={toggleCollapse}
-              title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              title={isCollapsed ? t('nav.expandSidebar') : t('nav.collapseSidebar')}
               className={cn(
                 'flex items-center gap-2 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-800/60 hover:text-slate-400 transition-colors',
                 isCollapsed ? 'h-8 w-8 justify-center' : 'w-full px-2 py-1.5'
@@ -242,7 +242,7 @@ export function Sidebar({ onClose }: SidebarProps) {
             >
               {isCollapsed
                 ? <ChevronRight className="h-4 w-4" />
-                : <><ChevronLeft className="h-3.5 w-3.5" /><span>Collapse</span></>
+                : <><ChevronLeft className="h-3.5 w-3.5" /><span>{t('nav.collapse')}</span></>
               }
             </button>
           </div>

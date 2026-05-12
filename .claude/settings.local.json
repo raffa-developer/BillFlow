@@ -38,7 +38,11 @@
       "PowerShell(tail *)",
       "PowerShell(npx playwright install chromium 2>&1 | Select-Object -Last 5)",
       "PowerShell(Invoke-RestMethod -Uri \"http://localhost:4000/api/auth/register\" -Method POST -ContentType \"application/json\" -Body '{\"email\":\"test_diag@billflow.com\",\"password\":\"Test1234!\"}' 2>&1)",
-      "PowerShell($response = Invoke-WebRequest -Uri \"http://localhost:4000/api/auth/register\" -Method POST -ContentType \"application/json\" -Body '{\"email\":\"test_diag2@billflow.com\",\"password\":\"Test1234!\"}' -UseBasicParsing; Write-Output \"Status: $\\($response.StatusCode\\)\"; Write-Output \"Body: $\\($response.Content\\)\")"
+      "PowerShell($response = Invoke-WebRequest -Uri \"http://localhost:4000/api/auth/register\" -Method POST -ContentType \"application/json\" -Body '{\"email\":\"test_diag2@billflow.com\",\"password\":\"Test1234!\"}' -UseBasicParsing; Write-Output \"Status: $\\($response.StatusCode\\)\"; Write-Output \"Body: $\\($response.Content\\)\")",
+      "Bash(Get-Content \"C:\\\\Users\\\\zpx\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-zpx-Desktop-Projetos-Billing-System\\\\333d5b36-6e2f-4334-aac8-4ad051ec87a8\\\\tasks\\\\bpj1j0q8n.output\" -Wait)",
+      "Bash(Select-String -Pattern \"Local|ready|error|Error|VITE\" --SimpleMatch)",
+      "Bash(findstr \":5173 \")",
+      "Bash(node test-app.mjs)"
     ]
   }
 }

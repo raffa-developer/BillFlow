@@ -14,22 +14,12 @@ import type { Invoice, InvoiceStatus } from '../types';
 
 type SortKey = 'date_desc' | 'date_asc' | 'due_asc' | 'due_desc' | 'total_desc' | 'total_asc' | 'number_asc';
 
-const STATUS_OPTS: { value: string; label: string; color: string }[] = [
-  { value: '',        label: 'All',     color: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300' },
-  { value: 'PENDING', label: 'Pending', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
-  { value: 'PAID',    label: 'Paid',    color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' },
-  { value: 'OVERDUE', label: 'Overdue', color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
-];
-
-const SORT_OPTS: { value: SortKey; label: string }[] = [
-  { value: 'date_desc',   label: 'Issued (newest)' },
-  { value: 'date_asc',    label: 'Issued (oldest)' },
-  { value: 'due_asc',     label: 'Due (soonest)' },
-  { value: 'due_desc',    label: 'Due (latest)' },
-  { value: 'total_desc',  label: 'Amount (highest)' },
-  { value: 'total_asc',   label: 'Amount (lowest)' },
-  { value: 'number_asc',  label: 'Invoice #' },
-];
+const STATUS_COLORS: Record<string, string> = {
+  '':        'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
+  'PENDING': 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+  'PAID':    'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+  'OVERDUE': 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+};
 
 function applySort(list: Invoice[], sort: SortKey): Invoice[] {
   return [...list].sort((a, b) => {
@@ -50,6 +40,23 @@ const PAGE_SIZE = 10;
 export default function InvoicesPage() {
   const { t } = useTranslation();
   const qc = useQueryClient();
+
+  const STATUS_OPTS = [
+    { value: '',        label: t('invoices.filterAll') },
+    { value: 'PENDING', label: t('common.pending') },
+    { value: 'PAID',    label: t('common.paid') },
+    { value: 'OVERDUE', label: t('common.overdue') },
+  ];
+
+  const SORT_OPTS: { value: SortKey; label: string }[] = [
+    { value: 'date_desc',  label: t('invoices.sortNewest') },
+    { value: 'date_asc',   label: t('invoices.sortOldest') },
+    { value: 'due_asc',    label: t('invoices.sortDueSoonest') },
+    { value: 'due_desc',   label: t('invoices.sortDueLatest') },
+    { value: 'total_desc', label: t('invoices.sortAmountHigh') },
+    { value: 'total_asc',  label: t('invoices.sortAmountLow') },
+    { value: 'number_asc', label: t('invoices.sortNumber') },
+  ];
   const [searchParams, setSearchParams] = useSearchParams();
   const { formatAmount } = useCurrency();
 
@@ -152,7 +159,7 @@ export default function InvoicesPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{t('invoices.title')}</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-            {filtered.length} of {all.length} invoices
+            {t('invoices.countFiltered', { filtered: filtered.length, total: all.length })}
           </p>
         </div>
         <Link to="/invoices/new">
@@ -170,7 +177,7 @@ export default function InvoicesPage() {
               'rounded-full px-3.5 py-1 text-xs font-semibold transition-all border',
               statusFilter === opt.value
                 ? 'border-blue-600 bg-blue-600 text-white shadow-sm'
-                : `border-transparent ${opt.color} hover:opacity-80`
+                : `border-transparent ${STATUS_COLORS[opt.value]} hover:opacity-80`
             )}
           >
             {opt.label}
@@ -185,7 +192,7 @@ export default function InvoicesPage() {
           <input
             value={search}
             onChange={e => setParam('q', e.target.value)}
-            placeholder="Search by invoice #, client name or ID…"
+            placeholder={t('invoices.searchPlaceholder')}
             className="h-9 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-8 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500"
           />
           {search && (
@@ -205,7 +212,7 @@ export default function InvoicesPage() {
           )}
         >
           <SlidersHorizontal className="h-3.5 w-3.5" />
-          Filters
+          {t('common.filters')}
           {hasActiveFilters && (
             <span className="flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">
               {[search, statusFilter, dateFrom, dateTo, minTotal, maxTotal].filter(Boolean).length}
@@ -227,29 +234,29 @@ export default function InvoicesPage() {
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/50">
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Issued from</label>
+              <label className="text-xs font-medium text-slate-500 dark:text-slate-400">{t('invoices.filterIssuedFrom')}</label>
               <input type="date" value={dateFrom} onChange={e => setParam('from', e.target.value)}
                 className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200" />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Issued to</label>
+              <label className="text-xs font-medium text-slate-500 dark:text-slate-400">{t('invoices.filterIssuedTo')}</label>
               <input type="date" value={dateTo} onChange={e => setParam('to', e.target.value)}
                 className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200" />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Min amount</label>
+              <label className="text-xs font-medium text-slate-500 dark:text-slate-400">{t('invoices.filterMinAmount')}</label>
               <input type="number" min="0" step="0.01" value={minTotal} onChange={e => setParam('min', e.target.value)} placeholder="0.00"
                 className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200" />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Max amount</label>
+              <label className="text-xs font-medium text-slate-500 dark:text-slate-400">{t('invoices.filterMaxAmount')}</label>
               <input type="number" min="0" step="0.01" value={maxTotal} onChange={e => setParam('max', e.target.value)} placeholder="∞"
                 className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200" />
             </div>
           </div>
           {hasActiveFilters && (
             <button onClick={clearAll} className="mt-3 flex items-center gap-1 text-xs text-slate-500 hover:text-red-500 transition-colors">
-              <X className="h-3 w-3" /> Clear all filters
+              <X className="h-3 w-3" /> {t('common.clearAllFilters')}
             </button>
           )}
         </div>
@@ -259,7 +266,7 @@ export default function InvoicesPage() {
       {selected.size > 0 && (
         <div className="flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30 px-4 py-2.5">
           <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
-            {selected.size} invoice{selected.size !== 1 ? 's' : ''} selected
+            {t('invoices.selected', { count: selected.size })}
           </span>
           <div className="flex items-center gap-2">
             <Button
@@ -268,7 +275,7 @@ export default function InvoicesPage() {
               onClick={() => bulkMarkPaidMutation.mutate()}
               loading={bulkMarkPaidMutation.isPending}
             >
-              <CheckCheck className="h-3.5 w-3.5" /> Mark as paid
+              <CheckCheck className="h-3.5 w-3.5" /> {t('invoices.markAsPaid')}
             </Button>
             <Button
               size="sm"
@@ -296,9 +303,9 @@ export default function InvoicesPage() {
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-16 text-slate-400 dark:text-slate-500">
             <FileText className="h-8 w-8" />
-            <p className="text-sm font-medium">{hasActiveFilters ? 'No invoices match your filters' : t('invoices.none')}</p>
+            <p className="text-sm font-medium">{hasActiveFilters ? t('invoices.noMatch') : t('invoices.none')}</p>
             {hasActiveFilters
-              ? <button onClick={clearAll} className="text-xs text-blue-500 hover:underline">Clear filters</button>
+              ? <button onClick={clearAll} className="text-xs text-blue-500 hover:underline">{t('common.clearFilters')}</button>
               : <Link to="/invoices/new"><Button variant="secondary" size="sm"><Plus className="h-3.5 w-3.5" /> {t('invoices.new')}</Button></Link>
             }
           </div>
@@ -320,7 +327,7 @@ export default function InvoicesPage() {
                       <StatusBadge status={inv.status as InvoiceStatus} />
                     </div>
                     <p className="font-medium text-slate-800 dark:text-slate-100 truncate">{inv.client.name}</p>
-                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Due {formatDate(inv.dueDate)}</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{t('invoices.colDue')}: {formatDate(inv.dueDate)}</p>
                   </Link>
                   <div className="flex flex-col items-end gap-1">
                     <span className="font-semibold text-slate-700 dark:text-slate-200 tabular-nums">{formatAmount(inv.total)}</span>
@@ -350,12 +357,12 @@ export default function InvoicesPage() {
                         className="h-4 w-4 rounded border-slate-300 accent-blue-600"
                       />
                     </th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Invoice #</th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Client</th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Issued</th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Due</th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Status</th>
-                    <th className="px-5 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide">Total</th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('invoices.colNumber')}</th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('invoices.colClient')}</th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('invoices.colIssued')}</th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('invoices.colDue')}</th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('common.status')}</th>
+                    <th className="px-5 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('common.total')}</th>
                     <th className="px-5 py-3" />
                   </tr>
                 </thead>
@@ -383,7 +390,7 @@ export default function InvoicesPage() {
                           <p className="text-[10px] text-slate-400 dark:text-slate-500 tabular-nums mt-0.5">
                             {inv.discountType !== 'NONE' && `-${inv.discountType === 'PERCENT' ? inv.discountValue + '%' : formatAmount(inv.discountValue)}`}
                             {inv.discountType !== 'NONE' && parseFloat(inv.taxRate) > 0 && ' · '}
-                            {parseFloat(inv.taxRate) > 0 && `VAT ${inv.taxRate}%`}
+                            {parseFloat(inv.taxRate) > 0 && t('invoices.vatSubline', { rate: inv.taxRate })}
                           </p>
                         )}
                       </td>
@@ -405,7 +412,7 @@ export default function InvoicesPage() {
             {totalPages > 1 && (
               <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800 px-5 py-3">
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Page {page} of {totalPages} · {filtered.length} invoices
+                  {t('invoices.paginationInfo', { page, total: totalPages, count: filtered.length })}
                 </p>
                 <div className="flex items-center gap-1">
                   <Button variant="ghost" size="sm" disabled={page === 1} onClick={() => setPage(p => p - 1)}>
@@ -450,9 +457,9 @@ export default function InvoicesPage() {
         </div>
       </Modal>
 
-      <Modal open={bulkDeleteOpen} onClose={() => setBulkDeleteOpen(false)} title="Delete invoices">
+      <Modal open={bulkDeleteOpen} onClose={() => setBulkDeleteOpen(false)} title={t('invoices.bulkDeleteTitle')}>
         <p className="text-sm text-slate-600 dark:text-slate-400 mb-5">
-          Delete {selected.size} invoice{selected.size !== 1 ? 's' : ''}? This cannot be undone.
+          {t('invoices.bulkDeleteConfirm', { count: selected.size })}
         </p>
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={() => setBulkDeleteOpen(false)}>{t('common.cancel')}</Button>

@@ -15,13 +15,6 @@ interface ProductForm { name: string; price: string; description: string; }
 const emptyForm: ProductForm = { name: '', price: '', description: '' };
 
 type SortKey = 'name_asc' | 'name_desc' | 'price_asc' | 'price_desc' | 'newest';
-const SORT_OPTS: { value: SortKey; label: string }[] = [
-  { value: 'newest',     label: 'Newest first' },
-  { value: 'name_asc',   label: 'Name (A–Z)' },
-  { value: 'name_desc',  label: 'Name (Z–A)' },
-  { value: 'price_asc',  label: 'Price (lowest)' },
-  { value: 'price_desc', label: 'Price (highest)' },
-];
 
 function applySort(list: Product[], sort: SortKey): Product[] {
   return [...list].sort((a, b) => {
@@ -38,6 +31,14 @@ function applySort(list: Product[], sort: SortKey): Product[] {
 export default function ProductsPage() {
   const { t } = useTranslation();
   const qc = useQueryClient();
+
+  const SORT_OPTS: { value: SortKey; label: string }[] = [
+    { value: 'newest',     label: t('products.sortNewest') },
+    { value: 'name_asc',   label: t('products.sortNameAZ') },
+    { value: 'name_desc',  label: t('products.sortNameZA') },
+    { value: 'price_asc',  label: t('products.sortPriceLow') },
+    { value: 'price_desc', label: t('products.sortPriceHigh') },
+  ];
   const { formatAmount } = useCurrency();
 
   const [search, setSearch]           = useState('');
@@ -115,7 +116,7 @@ export default function ProductsPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{t('products.title')}</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-            {filtered.length} of {all.length} products
+            {t('products.countFiltered', { filtered: filtered.length, total: all.length })}
           </p>
         </div>
         <Button onClick={openCreate}><Plus className="h-4 w-4" /> {t('products.new')}</Button>
@@ -128,7 +129,7 @@ export default function ProductsPage() {
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Search by name or description…"
+            placeholder={t('products.search')}
             className="h-9 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-8 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500"
           />
           {search && (
@@ -148,7 +149,7 @@ export default function ProductsPage() {
           )}
         >
           <SlidersHorizontal className="h-3.5 w-3.5" />
-          Filters
+          {t('common.filters')}
           {hasActiveFilters && (
             <span className="flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">
               {[search, minPrice, maxPrice, hasDesc].filter(Boolean).length}
@@ -170,12 +171,12 @@ export default function ProductsPage() {
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/50">
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Min price</label>
+              <label className="text-xs font-medium text-slate-500 dark:text-slate-400">{t('products.filterMinPrice')}</label>
               <input type="number" min="0" step="0.01" value={minPrice} onChange={e => setMinPrice(e.target.value)} placeholder="0.00"
                 className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200" />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Max price</label>
+              <label className="text-xs font-medium text-slate-500 dark:text-slate-400">{t('products.filterMaxPrice')}</label>
               <input type="number" min="0" step="0.01" value={maxPrice} onChange={e => setMaxPrice(e.target.value)} placeholder="∞"
                 className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200" />
             </div>
@@ -189,13 +190,13 @@ export default function ProductsPage() {
                     : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'
                 )}
               >
-                Has description
+                {t('products.filterHasDesc')}
               </button>
             </div>
           </div>
           {hasActiveFilters && (
             <button onClick={clearAll} className="mt-3 flex items-center gap-1 text-xs text-slate-500 hover:text-red-500 transition-colors">
-              <X className="h-3 w-3" /> Clear all filters
+              <X className="h-3 w-3" /> {t('common.clearAllFilters')}
             </button>
           )}
         </div>
@@ -210,9 +211,9 @@ export default function ProductsPage() {
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-16 text-slate-400 dark:text-slate-500">
             <Package className="h-8 w-8" />
-            <p className="text-sm font-medium">{hasActiveFilters ? 'No products match your filters' : t('products.none')}</p>
+            <p className="text-sm font-medium">{hasActiveFilters ? t('products.noMatch') : t('products.none')}</p>
             {hasActiveFilters
-              ? <button onClick={clearAll} className="text-xs text-blue-500 hover:underline">Clear filters</button>
+              ? <button onClick={clearAll} className="text-xs text-blue-500 hover:underline">{t('common.clearFilters')}</button>
               : <Button variant="secondary" size="sm" onClick={openCreate}><Plus className="h-3.5 w-3.5" /> {t('products.new')}</Button>
             }
           </div>
@@ -229,7 +230,7 @@ export default function ProductsPage() {
                 <div className="flex items-center gap-3 ml-4">
                   {(p.invoiceCount ?? 0) > 0 && (
                     <span className="text-xs text-slate-400 dark:text-slate-500 tabular-nums">
-                      {p.invoiceCount} inv.
+                      {t('products.usedIn', { count: p.invoiceCount })}
                     </span>
                   )}
                   <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 tabular-nums">
@@ -249,7 +250,7 @@ export default function ProductsPage() {
         {totalPages > 1 && (
           <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800 px-5 py-3">
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Page {page} of {totalPages} · {filtered.length} products
+              {t('products.paginationInfo', { page, total: totalPages, count: filtered.length })}
             </p>
             <div className="flex items-center gap-1">
               <Button variant="ghost" size="sm" disabled={page === 1} onClick={() => setPage(p => p - 1)}>
@@ -302,7 +303,7 @@ export default function ProductsPage() {
             <>
               {count > 0 && (
                 <p className="rounded-lg bg-amber-50 dark:bg-amber-950/40 px-3 py-2 text-sm text-amber-700 dark:text-amber-400 mb-3">
-                  This product is used in {count} invoice{count !== 1 ? 's' : ''}. Deleting it will not remove those invoice lines.
+                  {t('products.usedInWarning', { count })}
                 </p>
               )}
               <p className="text-sm text-slate-600 dark:text-slate-400 mb-5">{t('products.deleteConfirm')}</p>
