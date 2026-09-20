@@ -229,7 +229,7 @@ export default function InvoicesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{t('invoices.title')}</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+          <p className="text-sm text-muted-foreground mt-0.5">
             {t('invoices.countFiltered', { filtered: filteredRows.length, total: all.length })}
           </p>
         </div>
@@ -305,6 +305,7 @@ export default function InvoicesPage() {
 
         <select
           value={sort}
+          aria-label={t('invoices.sort')}
           onChange={e => setParam('sort', e.target.value)}
           className="h-9 rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
         >
@@ -482,7 +483,7 @@ export default function InvoicesPage() {
               {t('invoices.paginationInfo', { page: safePage, total: totalPages, count: filteredRows.length })}
             </p>
             <div className="flex items-center gap-1">
-              <Button variant="ghost" size="sm" disabled={safePage === 1} onClick={() => setPage(p => p - 1)}>
+              <Button variant="ghost" size="sm" aria-label={t('invoices.prevPage')} disabled={safePage === 1} onClick={() => setPage(p => p - 1)}>
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
@@ -504,7 +505,7 @@ export default function InvoicesPage() {
                   </button>
                 );
               })}
-              <Button variant="ghost" size="sm" disabled={safePage === totalPages} onClick={() => setPage(p => p + 1)}>
+              <Button variant="ghost" size="sm" aria-label={t('invoices.nextPage')} disabled={safePage === totalPages} onClick={() => setPage(p => p + 1)}>
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>

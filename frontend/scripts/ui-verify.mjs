@@ -209,6 +209,24 @@ async function run() {
     check('axe: no serious/critical violations in command palette', paletteSerious.length === 0,
       paletteSerious.map((v) => v.id).join(', '));
     await page.keyboard.press('Escape');
+
+    await goto('/invoices');
+    await page.addScriptTag({ url: 'https://unpkg.com/axe-core@4.10.2/axe.min.js' });
+    const invResult = await page.evaluate(async () => window.axe.run(document, {
+      runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa'] },
+    }));
+    const invSerious = invResult.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
+    check('axe: no serious/critical violations on invoices', invSerious.length === 0, invSerious.map((v) => v.id).join(', '));
+
+    await page.evaluate(() => document.documentElement.classList.add('dark'));
+    await page.waitForTimeout(300);
+    await shot('invoices-dark');
+    const invDark = await page.evaluate(async () => window.axe.run(document, {
+      runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa'] },
+    }));
+    const invDarkSerious = invDark.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
+    check('axe dark: no serious/critical violations on invoices', invDarkSerious.length === 0, invDarkSerious.map((v) => v.id).join(', '));
+    await page.evaluate(() => document.documentElement.classList.remove('dark'));
   }
 
   if (shots) console.log(`\nScreenshots: ${shots}`);
