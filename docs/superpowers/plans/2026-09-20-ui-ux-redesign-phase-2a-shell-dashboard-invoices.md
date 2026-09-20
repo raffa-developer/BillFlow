@@ -218,7 +218,7 @@ Replace each of the six module names with its `Legacy` counterpart in every list
 From `frontend/`:
 
 ```bash
-npx shadcn@latest add button input select badge calendar alert-dialog --yes
+npx shadcn@latest add button input select badge card calendar alert-dialog --yes
 ```
 
 - [ ] **Step 4: Verify nothing regressed**
@@ -268,7 +268,7 @@ return (
             onClick={() => setPeriod(p)}
             className={cn(
               'rounded-md px-3 py-1.5 text-xs font-semibold transition-colors',
-              period === p ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+              period === p ? 'bg-primary text-primary-foreground' : 'text-foreground hover:bg-muted'
             )}
           >
             {t(`dashboard.period${p.charAt(0).toUpperCase() + p.slice(1)}`)}
@@ -310,7 +310,7 @@ return (
         </Card>
         <Card data-testid="dashboard-stat-paid" className="p-5">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('dashboard.paidRate')}</p>
-          <p className="font-display mt-1 text-2xl font-bold tracking-tight text-accent-foreground">
+          <p className="font-display mt-1 text-2xl font-bold tracking-tight text-foreground dark:text-accent">
             {collectionRate}%
           </p>
         </Card>
@@ -378,7 +378,7 @@ Append in the shell-check region, before the axe block:
   for (const id of ['dashboard-hero-revenue', 'dashboard-stat-outstanding', 'dashboard-stat-paid', 'dashboard-status-bars', 'dashboard-recent']) {
     check(`dashboard bento: ${id}`, await page.getByTestId(id).isVisible());
   }
-  await page.getByTestId('dashboard-recent').locator('a').first().click();
+  await page.getByTestId('dashboard-recent').locator('a[href^="/invoices/"]').first().click();
   await page.waitForLoadState('networkidle');
   check('recent invoice link navigates', page.url().includes('/invoices/'));
   await goto('/');
