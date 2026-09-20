@@ -61,6 +61,23 @@ async function run() {
   check('dark background token', darkBg === '#121212', darkBg);
 
   // --- shell checks (Task 5) ---
+  await goto('/');
+  check('rail visible', await page.getByTestId('nav-rail-main').isVisible());
+  await page.getByTestId('nav-rail-finance').hover();
+  await page.waitForTimeout(300);
+  check('hover opens flyout', await page.getByTestId('nav-flyout').isVisible());
+  await page.getByTestId('nav-rail-finance').click();
+  await page.waitForTimeout(200);
+  await page.getByTestId('nav-item-reports').click();
+  await page.waitForLoadState('networkidle');
+  check('flyout navigates to reports', page.url().endsWith('/reports'));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await goto('/');
+  await page.getByTestId('topbar-menu').click();
+  await page.waitForTimeout(400);
+  check('mobile nav sheet opens', await page.getByTestId('nav-mobile-invoices').isVisible());
+  await page.setViewportSize({ width: 1280, height: 800 });
+
   // --- palette checks (Task 6) ---
   // --- badge checks (Task 7) ---
   // Later tasks append their assertions above this line.
