@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Plus, FileText, Search, X, SlidersHorizontal, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, FileText, Trash2, Search, X, SlidersHorizontal, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useLegacyTable, getCoreRowModel, getSortedRowModel, getFilteredRowModel } from '@tanstack/react-table/legacy';
 import type { LegacyColumnDef } from '@tanstack/react-table/legacy';
@@ -38,7 +38,7 @@ const SORT_TO_STATE: Record<SortKey, SortingState> = {
 const PAGE_SIZE = 10;
 
 export default function InvoicesPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const qc = useQueryClient();
   const navigate = useNavigate();
 
@@ -192,6 +192,14 @@ export default function InvoicesPage() {
     grouped.set(key, [...(grouped.get(key) ?? []), row]);
   }
 
+  const allPageSelected = rows.length > 0 && rows.every((row) => row.getIsSelected());
+  const somePageSelected = rows.some((row) => row.getIsSelected());
+
+  const togglePageSelection = () => {
+    const select = !allPageSelected;
+    rows.forEach((row) => row.toggleSelected(select));
+  };
+
   const hasActiveFilters = !!(search || statusFilter || dateFrom || dateTo || minTotal || maxTotal);
 
   const deleteMutation = useMutation({
@@ -246,6 +254,18 @@ export default function InvoicesPage() {
             {opt.label}
           </button>
         ))}
+        <label className="ml-auto flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+          <input
+            type="checkbox"
+            data-testid="invoice-select-page"
+            aria-label={t('invoices.selectPage')}
+            checked={allPageSelected}
+            ref={(el) => { if (el) el.indeterminate = somePageSelected && !allPageSelected; }}
+            onChange={togglePageSelection}
+            className="h-3.5 w-3.5 rounded border-border accent-primary"
+          />
+          {t('invoices.selectPage')}
+        </label>
       </div>
 
       {/* Search + filter row */}
@@ -350,7 +370,7 @@ export default function InvoicesPage() {
                     data-testid={`invoice-group-${month}`}
                     className="bg-muted/50 px-5 py-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground"
                   >
-                    {new Date(`${month}-01T12:00:00Z`).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
+                    {new Date(`${month}-01T12:00:00Z`).toLocaleDateString(i18n.language, { month: 'long', year: 'numeric' })}
                   </p>
                   {monthRows.map((row) => {
                     const inv = row.original;
@@ -359,15 +379,25 @@ export default function InvoicesPage() {
                       <div
                         key={inv.id}
                         data-testid={`invoice-row-${inv.id}`}
+                        role="link"
+                        tabIndex={0}
                         onClick={() => navigate(`/invoices/${inv.id}`)}
+                        onKeyDown={(e) => {
+                          if (e.target !== e.currentTarget) return;
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            navigate(`/invoices/${inv.id}`);
+                          }
+                        }}
                         className={cn(
-                          'group flex cursor-pointer items-center gap-3 border-b border-border px-5 py-3 transition-colors last:border-b-0 hover:bg-muted/40',
+                          'group flex cursor-pointer items-center gap-3 border-b border-border px-5 py-3 transition-colors last:border-b-0 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
                           selected && 'bg-primary/5'
                         )}
                       >
                         <input
                           type="checkbox"
                           data-testid={`invoice-select-${inv.id}`}
+                          aria-label={t('invoices.selectInvoice', { number: inv.number })}
                           checked={selected}
                           onClick={(e) => e.stopPropagation()}
                           onChange={row.getToggleSelectedHandler()}
@@ -379,6 +409,15 @@ export default function InvoicesPage() {
                         <span className="w-28 shrink-0 text-right font-mono text-sm font-bold tabular-nums text-foreground">
                           {formatAmount(parseFloat(inv.total))}
                         </span>
+                        <button
+                          type="button"
+                          data-testid={`invoice-delete-${inv.id}`}
+                          aria-label={t('common.delete')}
+                          onClick={(e) => { e.stopPropagation(); setDeleteId(inv.id); }}
+                          className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 text-muted-foreground hover:text-destructive transition-opacity"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
                       </div>
                     );
                   })}
@@ -395,14 +434,24 @@ export default function InvoicesPage() {
                   <div
                     key={inv.id}
                     data-testid={`invoice-card-${inv.id}`}
+                    role="link"
+                    tabIndex={0}
                     onClick={() => navigate(`/invoices/${inv.id}`)}
+                    onKeyDown={(e) => {
+                      if (e.target !== e.currentTarget) return;
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        navigate(`/invoices/${inv.id}`);
+                      }
+                    }}
                     className={cn(
-                      'flex cursor-pointer items-start gap-3 border-b border-border px-4 py-3.5 last:border-b-0',
+                      'flex cursor-pointer items-start gap-3 border-b border-border px-4 py-3.5 last:border-b-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
                       selected && 'bg-primary/5'
                     )}
                   >
                     <input
                       type="checkbox"
+                      aria-label={t('invoices.selectInvoice', { number: inv.number })}
                       checked={selected}
                       onClick={(e) => e.stopPropagation()}
                       onChange={row.getToggleSelectedHandler()}
@@ -417,6 +466,15 @@ export default function InvoicesPage() {
                       <p className="mt-0.5 text-xs text-muted-foreground">{t('invoices.colDue')}: {formatDate(inv.dueDate)}</p>
                     </div>
                     <span className="shrink-0 font-mono font-semibold tabular-nums text-foreground">{formatAmount(parseFloat(inv.total))}</span>
+                    <button
+                      type="button"
+                      data-testid={`invoice-delete-${inv.id}`}
+                      aria-label={t('common.delete')}
+                      onClick={(e) => { e.stopPropagation(); setDeleteId(inv.id); }}
+                      className="opacity-100 shrink-0 text-muted-foreground hover:text-destructive transition-opacity"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
                   </div>
                 );
               })}
@@ -463,8 +521,8 @@ export default function InvoicesPage() {
       {selectedIds.size > 0 && (
         <div data-testid="bulk-bar" className="fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-4 rounded-xl bg-sidebar-background px-4 py-2.5 text-xs font-semibold text-sidebar-foreground shadow-lg">
           <span>{t('invoices.selected', { count: selectedIds.size })}</span>
-          <button className="text-accent" onClick={() => bulkMarkPaidMutation.mutate()}>{t('invoices.bulkMarkPaid')}</button>
-          <button className="text-[#ef9a9a]" onClick={() => setBulkDeleteOpen(true)}>{t('common.delete')}</button>
+          <button className="text-accent disabled:opacity-50" disabled={bulkMarkPaidMutation.isPending} onClick={() => bulkMarkPaidMutation.mutate()}>{t('invoices.bulkMarkPaid')}</button>
+          <button className="text-[#ef9a9a] disabled:opacity-50" disabled={bulkDeleteMutation.isPending} onClick={() => setBulkDeleteOpen(true)}>{t('common.delete')}</button>
         </div>
       )}
 

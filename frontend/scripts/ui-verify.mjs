@@ -132,15 +132,7 @@ async function run() {
   // --- invoices ledger (Task 4) ---
   await goto('/invoices');
   check('ledger group header present', (await page.locator('[data-testid^="invoice-group-"]').count()) > 0);
-  const firstRow = page.locator('[data-testid^="invoice-row-"]').first();
-  check('ledger row present', await firstRow.isVisible());
-  await firstRow.locator('input[type=checkbox]').click();
-  await page.waitForTimeout(200);
-  check('bulk bar appears on selection', await page.getByTestId('bulk-bar').isVisible());
-  await page.keyboard.press('Escape');
-  await firstRow.click();
-  await page.waitForLoadState('networkidle');
-  check('ledger row opens detail', /\/invoices\/\d+/.test(page.url()));
+  check('ledger row present', await page.locator('[data-testid^="invoice-row-"]').first().isVisible());
 
   // Later tasks append their assertions above this line.
 
@@ -167,6 +159,25 @@ async function run() {
   check('ArrowRight focuses first flyout item',
     await page.getByTestId('nav-item-dashboard').evaluate((el) => el === document.activeElement));
   await page.keyboard.press('Escape');
+
+  // --- invoices ledger interaction (Task 4 fix round) ---
+  await goto('/invoices');
+  const firstLedgerRow = page.locator('[data-testid^="invoice-row-"]').first();
+  await firstLedgerRow.locator('input[type=checkbox]').click();
+  await page.waitForTimeout(200);
+  check('bulk bar appears on selection', await page.getByTestId('bulk-bar').isVisible());
+  await page.getByTestId('invoice-select-page').click();
+  await page.waitForTimeout(200);
+  check('select-all selects the page', (await page.locator('[data-testid^="invoice-select-"]:checked').count()) > 1);
+  await page.keyboard.press('Escape');
+  await firstLedgerRow.focus();
+  await page.keyboard.press('Enter');
+  await page.waitForLoadState('networkidle');
+  check('keyboard opens invoice detail', /\/invoices\/\d+/.test(page.url()));
+  await goto('/invoices');
+  await page.locator('[data-testid^="invoice-delete-"]').first().click();
+  await page.waitForTimeout(300);
+  check('row delete opens the confirm modal', await page.locator('button:has-text("Delete")').count() > 0);
 
   if (WANT_AXE) {
     await goto('/');

@@ -168,6 +168,8 @@ const pt: Translations = {
     selected_other: '{{count}} selecionadas',
     markAsPaid: 'Marcar como paga',
     bulkMarkPaid: 'Marcar como paga',
+    selectInvoice: 'Selecionar fatura {{number}}',
+    selectPage: 'Selecionar página',
     noMatch: 'Nenhuma fatura corresponde aos filtros',
     bulkDeleteTitle: 'Eliminar faturas',
     bulkDeleteConfirm_one: 'Eliminar {{count}} fatura? Esta ação não pode ser desfeita.',

@@ -168,6 +168,8 @@ const de: Translations = {
     selected_other: '{{count}} ausgewählt',
     markAsPaid: 'Als bezahlt markieren',
     bulkMarkPaid: 'Als bezahlt markieren',
+    selectInvoice: 'Rechnung {{number}} auswählen',
+    selectPage: 'Seite auswählen',
     noMatch: 'Keine Rechnungen entsprechen den Filtern',
     bulkDeleteTitle: 'Rechnungen löschen',
     bulkDeleteConfirm_one: '{{count}} Rechnung löschen? Das kann nicht rückgängig gemacht werden.',

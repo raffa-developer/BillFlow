@@ -168,6 +168,8 @@ const fr: Translations = {
     selected_other: '{{count}} sélectionnées',
     markAsPaid: 'Marquer comme payé',
     bulkMarkPaid: 'Marquer payée',
+    selectInvoice: 'Sélectionner la facture {{number}}',
+    selectPage: 'Sélectionner la page',
     noMatch: 'Aucune facture ne correspond aux filtres',
     bulkDeleteTitle: 'Supprimer les factures',
     bulkDeleteConfirm_one: 'Supprimer {{count}} facture ? Cette action est irréversible.',

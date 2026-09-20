@@ -166,6 +166,8 @@ const en = {
     selected_other: '{{count}} selected',
     markAsPaid: 'Mark as paid',
     bulkMarkPaid: 'Mark paid',
+    selectInvoice: 'Select invoice {{number}}',
+    selectPage: 'Select page',
     noMatch: 'No invoices match your filters',
     bulkDeleteTitle: 'Delete invoices',
     bulkDeleteConfirm_one: 'Delete {{count}} invoice? This cannot be undone.',
