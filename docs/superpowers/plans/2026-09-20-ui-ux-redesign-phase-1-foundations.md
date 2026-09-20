@@ -715,7 +715,6 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
   const [peek, setPeek] = useState<string | null>(null);
   const [pinned, setPinned] = useState<string | null>(null);
-  const [commandOpen, setCommandOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const closeTimer = useRef<number | null>(null);
 
@@ -726,11 +725,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { setPinned(null); setCommandOpen(false); }
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        setCommandOpen((v) => !v);
-      }
+      if (e.key === 'Escape') setPinned(null);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -776,7 +771,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar
-          onOpenCommand={() => setCommandOpen(true)}
+          onOpenCommand={() => { /* wired in Task 6 */ }}
           onOpenMobileNav={() => setMobileNavOpen(true)}
         />
         <main className="flex-1 overflow-y-auto">
@@ -788,7 +783,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 }
 ```
 
-`commandOpen` and its keyboard shortcut are wired in this component; Task 6 adds the palette component and renders it here.
+Task 6 replaces the `onOpenCommand` stub with palette state, the `⌘K` handler, and the `<CommandPalette>` render.
 
 - [ ] **Step 6: Wire `Layout.tsx`, delete `Sidebar.tsx`**
 
@@ -803,6 +798,9 @@ Add to every locale file under the `nav` namespace:
 | `main` | Main | Principal | Principal | Principal | Haupt | Principale |
 | `finance` | Finance | Finanças | Finanzas | Finance | Finanzen | Finanza |
 | `system` | System | Sistema | Sistema | Système | System | Sistema |
+| `searchPlaceholder` | Search pages and actions… | Pesquisar páginas e ações… | Buscar páginas y acciones… | Rechercher pages et actions… | Seiten und Aktionen suchen… | Cerca pagine e azioni… |
+| `lightMode` | Switch to light mode | Mudar para modo claro | Cambiar a modo claro | Passer en mode clair | Zum hellen Modus wechseln | Passa al tema chiaro |
+| `darkMode` | Switch to dark mode | Mudar para modo escuro | Cambiar a modo oscuro | Passer en mode sombre | Zum dunklen Modus wechseln | Passa al tema scuro |
 
 - [ ] **Step 8: Add shell checks to the harness**
 
@@ -853,7 +851,11 @@ git commit -m "feat(ui): replace sidebar with rail and flyout app shell"
 
 - [ ] **Step 1: Implement the palette**
 
-Create `frontend/src/components/layout/CommandPalette.tsx`, then wire it into `AppShell.tsx` (import it and render `<CommandPalette open={commandOpen} onOpenChange={setCommandOpen} />`; the state and keyboard shortcut already exist from Task 5):
+Create `frontend/src/components/layout/CommandPalette.tsx`. Then wire it into `AppShell.tsx`:
+1. Add `const [commandOpen, setCommandOpen] = useState(false);`
+2. Extend the existing keydown effect with the `⌘K` / `Ctrl+K` toggle (prevent default, `setCommandOpen((v) => !v)`) and add `setCommandOpen(false)` to the Escape branch.
+3. Replace the `onOpenCommand` stub with `() => setCommandOpen(true)`.
+4. Render `<CommandPalette open={commandOpen} onOpenChange={setCommandOpen} />` after the closing `</div>` of the main column, inside the root div.
 
 ```tsx
 import { useNavigate } from 'react-router-dom';
@@ -913,7 +915,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
 
 - [ ] **Step 2: Add locale keys**
 
-Add to all six locales under `nav`: `searchPlaceholder` (en: `Search pages and actions…`), `actions` (en: `Actions`), `newInvoice` (en: `New invoice`), `toggleTheme` (en: `Toggle theme`), `lightMode` (en: `Switch to light mode`), `darkMode` (en: `Switch to dark mode`). Translate for pt/es/fr/de/it in the same commit.
+Add to all six locales under `nav`: `actions` (en: `Actions`), `newInvoice` (en: `New invoice`), `toggleTheme` (en: `Toggle theme`). Translate for pt/es/fr/de/it in the same commit.
 
 - [ ] **Step 3: Harness check**
 
