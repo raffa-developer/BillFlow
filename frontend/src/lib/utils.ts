@@ -32,3 +32,18 @@ export function formatDate(dateStr: string): string {
 export function toISOLocal(dateStr: string): string {
   return new Date(dateStr).toISOString();
 }
+
+/** Local calendar date as YYYY-MM-DD (never shifts with timezone). */
+export function todayLocal(): string {
+  const d = new Date();
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+/**
+ * Date-only form value (YYYY-MM-DD) -> ISO at noon UTC.
+ * Noon UTC keeps the calendar day stable in every timezone (UTC-12..UTC+12).
+ */
+export function dateOnlyToIso(value: string): string {
+  return new Date(`${value}T12:00:00.000Z`).toISOString();
+}

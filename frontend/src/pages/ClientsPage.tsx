@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -53,7 +53,7 @@ export default function ClientsPage() {
   const [page, setPage]               = useState(1);
 
   const { data, isLoading } = useQuery({ queryKey: ['clients'], queryFn: () => clientsApi.list() });
-  const all = data?.data.clients ?? [];
+  const all = useMemo(() => data?.data.clients ?? [], [data]);
 
   const filtered = useMemo(() => {
     let list = all as Client[];
@@ -79,9 +79,16 @@ export default function ClientsPage() {
 
   const PAGE_SIZE = 10;
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const safePage = Math.min(page, totalPages);
+  const paginated = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
-  useEffect(() => { setPage(1); }, [search, sort, hasEmail, hasPhone, hasAddress]);
+  const filterKey = `${search}|${sort}|${hasEmail}|${hasPhone}|${hasAddress}`;
+  const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
+  if (filterKey !== prevFilterKey) {
+    // Reset to page 1 when filters change (documented adjust-state-during-render pattern).
+    setPrevFilterKey(filterKey);
+    setPage(1);
+  }
 
   const clearAll = () => {
     setSearch(''); setHasEmail(false); setHasPhone(false); setHasAddress(false);
@@ -90,10 +97,10 @@ export default function ClientsPage() {
   const saveMutation = useMutation({
     mutationFn: () => {
       const payload = {
-        name: form.name,
-        ...(form.email   && { email: form.email }),
-        ...(form.phone   && { phone: form.phone }),
-        ...(form.address && { address: form.address }),
+        name: form.name.trim(),
+        email: form.email.trim() || null,
+        phone: form.phone.trim() || null,
+        address: form.address.trim() || null,
       };
       return modal.client ? clientsApi.update(modal.client.id, payload) : clientsApi.create(payload);
     },
@@ -264,14 +271,14 @@ export default function ClientsPage() {
         {totalPages > 1 && (
           <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800 px-5 py-3">
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              {t('clients.paginationInfo', { page, total: totalPages, count: filtered.length })}
+              {t('clients.paginationInfo', { page: safePage, total: totalPages, count: filtered.length })}
             </p>
             <div className="flex items-center gap-1">
-              <Button variant="ghost" size="sm" disabled={page === 1} onClick={() => setPage(p => p - 1)}>
+              <Button variant="ghost" size="sm" disabled={safePage === 1} onClick={() => setPage(p => p - 1)}>
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                const start = Math.min(Math.max(page - 2, 1), Math.max(totalPages - 4, 1));
+                const start = Math.min(Math.max(safePage - 2, 1), Math.max(totalPages - 4, 1));
                 const pageNum = start + i;
                 if (pageNum > totalPages) return null;
                 return (
@@ -280,7 +287,7 @@ export default function ClientsPage() {
                     onClick={() => setPage(pageNum)}
                     className={cn(
                       'h-7 w-7 rounded text-xs font-medium transition-colors',
-                      page === pageNum
+                      safePage === pageNum
                         ? 'bg-blue-600 text-white'
                         : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
                     )}
@@ -289,7 +296,7 @@ export default function ClientsPage() {
                   </button>
                 );
               })}
-              <Button variant="ghost" size="sm" disabled={page === totalPages} onClick={() => setPage(p => p + 1)}>
+              <Button variant="ghost" size="sm" disabled={safePage === totalPages} onClick={() => setPage(p => p + 1)}>
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>

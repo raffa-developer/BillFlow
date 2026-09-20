@@ -11,6 +11,7 @@ import { StatusBadge } from '../components/ui/Badge';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { formatDate, cn } from '../lib/utils';
+import { discountAmountFor } from '../lib/invoiceMath';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
@@ -18,7 +19,7 @@ import {
 import type { Invoice } from '../types';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 
 /* ── period helpers ─────────────────────────────────────────────── */
 
@@ -104,6 +105,14 @@ function StatCard({
 
 /* ── page ───────────────────────────────────────────────────────── */
 
+const escapeHtml = (value: unknown): string =>
+  String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
 export default function ReportsPage() {
   const { formatAmount } = useCurrency();
   const { theme } = useTheme();
@@ -131,7 +140,7 @@ export default function ReportsPage() {
     queryKey: ['invoices'],
     queryFn: () => invoicesApi.list(),
   });
-  const allInvoices = (data?.data.invoices ?? []) as Invoice[];
+  const allInvoices = useMemo(() => (data?.data.invoices ?? []) as Invoice[], [data]);
 
   const periodFiltered = useMemo(() => {
     if (preset === 'custom') {
@@ -198,7 +207,10 @@ export default function ReportsPage() {
       new Date(inv.dateIssued).toLocaleDateString(),
       new Date(inv.dueDate).toLocaleDateString(),
       inv.status,
-      inv.subtotal, inv.discountValue, inv.taxAmount, inv.total,
+      inv.subtotal,
+      discountAmountFor(parseFloat(inv.subtotal), inv.discountType, parseFloat(inv.discountValue)),
+      inv.taxAmount,
+      inv.total,
     ]);
     const csv = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
@@ -211,11 +223,16 @@ export default function ReportsPage() {
 
   /* ── Excel export ───────────────────────────────────────────── */
 
-  const exportExcel = () => {
-    const wb = XLSX.utils.book_new();
+  const exportExcel = async () => {
+    const wb = new ExcelJS.Workbook();
 
-    // Summary sheet
-    const ws1 = XLSX.utils.aoa_to_sheet([
+    const addSheet = (name: string, rows: (string | number)[][], widths: number[]) => {
+      const ws = wb.addWorksheet(name);
+      ws.addRows(rows);
+      widths.forEach((w, i) => { ws.getColumn(i + 1).width = w; });
+    };
+
+    addSheet('Summary', [
       ['BillFlow Revenue Report'],
       [`Period: ${getPeriodLabel()}`],
       [`Generated: ${new Date().toLocaleDateString()}`],
@@ -230,28 +247,19 @@ export default function ReportsPage() {
       ['Paid',    paidList.length,    paidList.reduce((s, i) => s + parseFloat(i.total), 0)],
       ['Pending', pendingList.length, pendingList.reduce((s, i) => s + parseFloat(i.total), 0)],
       ['Overdue', overdueList.length, overdueList.reduce((s, i) => s + parseFloat(i.total), 0)],
-    ]);
-    ws1['!cols'] = [{ wch: 32 }, { wch: 18 }];
-    XLSX.utils.book_append_sheet(wb, ws1, 'Summary');
+    ], [32, 18]);
 
-    // Monthly sheet
-    const ws2 = XLSX.utils.aoa_to_sheet([
+    addSheet('Monthly Revenue', [
       ['Month', 'Paid', 'Pending', 'Overdue', 'Total'],
       ...monthlyData.map(m => [m.month, m.paid, m.pending, m.overdue, m.paid + m.pending + m.overdue]),
-    ]);
-    ws2['!cols'] = [{ wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 }];
-    XLSX.utils.book_append_sheet(wb, ws2, 'Monthly Revenue');
+    ], [12, 14, 14, 14, 14]);
 
-    // Top Clients sheet
-    const ws3 = XLSX.utils.aoa_to_sheet([
+    addSheet('Top Clients', [
       ['Rank', 'Client', 'Invoices', 'Total Billed', 'Paid Revenue'],
       ...topClients.map((c, i) => [i + 1, c.name, c.count, c.total, c.revenue]),
-    ]);
-    ws3['!cols'] = [{ wch: 6 }, { wch: 28 }, { wch: 10 }, { wch: 14 }, { wch: 14 }];
-    XLSX.utils.book_append_sheet(wb, ws3, 'Top Clients');
+    ], [6, 28, 10, 14, 14]);
 
-    // Invoices sheet
-    const ws4 = XLSX.utils.aoa_to_sheet([
+    addSheet('Invoices', [
       ['Invoice #', 'Client', 'Date Issued', 'Due Date', 'Status', 'Subtotal', 'Discount', 'Tax', 'Total'],
       ...filtered.map(inv => [
         inv.number,
@@ -260,15 +268,24 @@ export default function ReportsPage() {
         new Date(inv.dueDate).toLocaleDateString(),
         inv.status,
         parseFloat(inv.subtotal),
-        parseFloat(inv.discountValue),
+        discountAmountFor(parseFloat(inv.subtotal), inv.discountType, parseFloat(inv.discountValue)),
         parseFloat(inv.taxAmount),
         parseFloat(inv.total),
       ]),
-    ]);
-    ws4['!cols'] = [{ wch: 16 }, { wch: 26 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 12 }];
-    XLSX.utils.book_append_sheet(wb, ws4, 'Invoices');
+    ], [16, 26, 12, 12, 10, 12, 10, 10, 12]);
 
-    XLSX.writeFile(wb, `${filename()}.xlsx`);
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer as BlobPart], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${filename()}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   /* ── PDF export ─────────────────────────────────────────────── */
@@ -587,7 +604,7 @@ export default function ReportsPage() {
     <tbody>
       ${topClients.map((c, i) => `<tr>
         <td>${i + 1}</td>
-        <td class="bold">${c.name}</td>
+        <td class="bold">${escapeHtml(c.name)}</td>
         <td class="right">${c.count}</td>
         <td class="right">${formatAmount(c.total)}</td>
         <td class="right status-paid">${formatAmount(c.revenue)}</td>
@@ -602,8 +619,8 @@ export default function ReportsPage() {
     <thead><tr><th>Invoice #</th><th>Client</th><th>Issued</th><th>Due</th><th>Status</th><th class="right">Total</th></tr></thead>
     <tbody>
       ${filtered.map(inv => `<tr>
-        <td class="mono">${inv.number}</td>
-        <td>${inv.client.name}</td>
+        <td class="mono">${escapeHtml(inv.number)}</td>
+        <td>${escapeHtml(inv.client.name)}</td>
         <td>${new Date(inv.dateIssued).toLocaleDateString()}</td>
         <td>${new Date(inv.dueDate).toLocaleDateString()}</td>
         <td class="status-${inv.status.toLowerCase()}">${inv.status}</td>
@@ -903,7 +920,8 @@ export default function ReportsPage() {
         const now = new Date();
         const unpaid = allInvoices.filter(i => i.status === 'PENDING' || i.status === 'OVERDUE');
         const buckets = [
-          { label: '0–30 days',  min: 0,  max: 30  },
+          // Not-yet-due invoices (negative days) belong to the current bucket.
+          { label: '0–30 days',  min: -Infinity, max: 30  },
           { label: '31–60 days', min: 31, max: 60  },
           { label: '61–90 days', min: 61, max: 90  },
           { label: '90+ days',   min: 91, max: Infinity },

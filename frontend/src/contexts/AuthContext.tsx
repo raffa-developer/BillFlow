@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { authApi } from '../lib/api';
 import type { User } from '../types';
 
@@ -8,17 +9,20 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  refresh: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Only show the loading state when there is a token to validate.
+  const [loading, setLoading] = useState(() => !!localStorage.getItem('token'));
+  const qc = useQueryClient();
 
   useEffect(() => {
     const token = localStorage.getItem('token');
-    if (!token) { setLoading(false); return; }
+    if (!token) return;
 
     authApi.me()
       .then(({ data }) => setUser(data.user))
@@ -41,10 +45,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     localStorage.removeItem('token');
     setUser(null);
+    // Drop cached data from the previous account so it can't flash for the next user.
+    qc.clear();
+  };
+
+  const refresh = async () => {
+    const { data } = await authApi.me();
+    setUser(data.user);
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, refresh }}>
       {children}
     </AuthContext.Provider>
   );

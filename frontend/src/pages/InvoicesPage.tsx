@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Plus, FileText, Trash2, Eye, Search, X, SlidersHorizontal, ChevronLeft, ChevronRight, CheckCheck } from 'lucide-react';
@@ -10,6 +10,7 @@ import { StatusBadge } from '../components/ui/Badge';
 import { Modal } from '../components/ui/Modal';
 import { formatDate, cn } from '../lib/utils';
 import { useCurrency } from '../contexts/CurrencyContext';
+import { useToast } from '../contexts/ToastContext';
 import type { Invoice, InvoiceStatus } from '../types';
 
 type SortKey = 'date_desc' | 'date_asc' | 'due_asc' | 'due_desc' | 'total_desc' | 'total_asc' | 'number_asc';
@@ -59,6 +60,7 @@ export default function InvoicesPage() {
   ];
   const [searchParams, setSearchParams] = useSearchParams();
   const { formatAmount } = useCurrency();
+  const { toast } = useToast();
 
   // Filter state lives in URL so it survives navigation
   const search       = searchParams.get('q') ?? '';
@@ -75,7 +77,14 @@ export default function InvoicesPage() {
   const [selected, setSelected]           = useState<Set<number>>(new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
-  useEffect(() => { setPage(1); setSelected(new Set()); }, [search, statusFilter, dateFrom, dateTo, minTotal, maxTotal, sort]);
+  const filterKey = `${search}|${statusFilter}|${dateFrom}|${dateTo}|${minTotal}|${maxTotal}|${sort}`;
+  const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
+  if (filterKey !== prevFilterKey) {
+    // Reset pagination/selection when filters change (adjust-state-during-render pattern).
+    setPrevFilterKey(filterKey);
+    setPage(1);
+    setSelected(new Set());
+  }
 
   const setParam = (key: string, value: string) => {
     setSearchParams(prev => {
@@ -97,7 +106,7 @@ export default function InvoicesPage() {
     queryKey: ['invoices'],
     queryFn: () => invoicesApi.list(),
   });
-  const all = data?.data.invoices ?? [];
+  const all = useMemo(() => data?.data.invoices ?? [], [data]);
 
   const filtered = useMemo(() => {
     let list = all as Invoice[];
@@ -118,22 +127,29 @@ export default function InvoicesPage() {
   }, [all, search, statusFilter, dateFrom, dateTo, minTotal, maxTotal, sort]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const paginated  = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const safePage   = Math.min(page, totalPages);
+  const paginated  = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
   const hasActiveFilters = !!(search || statusFilter || dateFrom || dateTo || minTotal || maxTotal);
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => invoicesApi.remove(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['invoices'] }); setDeleteId(null); },
+    onError: (err: { response?: { data?: { message?: string } } }) =>
+      toast.error(err.response?.data?.message ?? t('common.error')),
   });
 
   const bulkMarkPaidMutation = useMutation({
     mutationFn: () => invoicesApi.bulkMarkPaid(Array.from(selected)),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['invoices'] }); setSelected(new Set()); },
+    onError: (err: { response?: { data?: { message?: string } } }) =>
+      toast.error(err.response?.data?.message ?? t('common.error')),
   });
 
   const bulkDeleteMutation = useMutation({
     mutationFn: () => invoicesApi.bulkDelete(Array.from(selected)),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['invoices'] }); setSelected(new Set()); setBulkDeleteOpen(false); },
+    onError: (err: { response?: { data?: { message?: string } } }) =>
+      toast.error(err.response?.data?.message ?? t('common.error')),
   });
 
   const pageIds = paginated.map(i => i.id);
@@ -149,7 +165,12 @@ export default function InvoicesPage() {
   };
 
   const toggleOne = (id: number) => {
-    setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+    setSelected(prev => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
   };
 
   return (
@@ -412,14 +433,14 @@ export default function InvoicesPage() {
             {totalPages > 1 && (
               <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800 px-5 py-3">
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  {t('invoices.paginationInfo', { page, total: totalPages, count: filtered.length })}
+                  {t('invoices.paginationInfo', { page: safePage, total: totalPages, count: filtered.length })}
                 </p>
                 <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="sm" disabled={page === 1} onClick={() => setPage(p => p - 1)}>
+                  <Button variant="ghost" size="sm" disabled={safePage === 1} onClick={() => setPage(p => p - 1)}>
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
                   {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                    const start = Math.min(Math.max(page - 2, 1), Math.max(totalPages - 4, 1));
+                    const start = Math.min(Math.max(safePage - 2, 1), Math.max(totalPages - 4, 1));
                     const pageNum = start + i;
                     if (pageNum > totalPages) return null;
                     return (
@@ -428,7 +449,7 @@ export default function InvoicesPage() {
                         onClick={() => setPage(pageNum)}
                         className={cn(
                           'h-7 w-7 rounded text-xs font-medium transition-colors',
-                          page === pageNum
+                          safePage === pageNum
                             ? 'bg-blue-600 text-white'
                             : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
                         )}
@@ -437,7 +458,7 @@ export default function InvoicesPage() {
                       </button>
                     );
                   })}
-                  <Button variant="ghost" size="sm" disabled={page === totalPages} onClick={() => setPage(p => p + 1)}>
+                  <Button variant="ghost" size="sm" disabled={safePage === totalPages} onClick={() => setPage(p => p + 1)}>
                     <ChevronRight className="h-4 w-4" />
                   </Button>
                 </div>

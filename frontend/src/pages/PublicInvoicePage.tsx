@@ -4,13 +4,12 @@ import { useTranslation } from 'react-i18next';
 import { Download, Mail, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { publicInvoiceApi } from '../lib/api';
 import { formatDate } from '../lib/utils';
-import { useCurrency } from '../contexts/CurrencyContext';
+import { discountAmountFor } from '../lib/invoiceMath';
 import { StatusBadge } from '../components/ui/Badge';
 
 export default function PublicInvoicePage() {
   const { t } = useTranslation();
   const { token } = useParams<{ token: string }>();
-  const { formatAmount } = useCurrency();
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['public-invoice', token],
@@ -47,12 +46,15 @@ export default function PublicInvoicePage() {
   const taxRate = parseFloat(invoice.taxRate);
   const taxAmount = parseFloat(invoice.taxAmount);
   const total = parseFloat(invoice.total);
-  const discountAmount =
-    invoice.discountType === 'PERCENT'
-      ? Math.round(subtotal * discountValue) / 100
-      : invoice.discountType === 'FIXED'
-      ? discountValue
-      : 0;
+  const discountAmount = discountAmountFor(subtotal, invoice.discountType, discountValue);
+
+  // Public API returns the invoice's own currency; never use the visitor's preference.
+  const currency = (company as { currency?: string }).currency ?? 'EUR';
+  const formatAmount = (value: string | number) => {
+    const numeric = typeof value === 'string' ? parseFloat(value) : value;
+    if (isNaN(numeric)) return '';
+    return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(numeric);
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 py-8 px-4">

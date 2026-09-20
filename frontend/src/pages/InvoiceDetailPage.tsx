@@ -8,7 +8,8 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { StatusBadge } from '../components/ui/Badge';
 import { Modal } from '../components/ui/Modal';
-import { formatDate } from '../lib/utils';
+import { formatDate, todayLocal, dateOnlyToIso } from '../lib/utils';
+import { discountAmountFor } from '../lib/invoiceMath';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useState } from 'react';
 import { useToast } from '../contexts/ToastContext';
@@ -56,13 +57,15 @@ export default function InvoiceDetailPage() {
       qc.invalidateQueries({ queryKey: ['invoices'] });
       qc.invalidateQueries({ queryKey: ['dashboard'] });
     },
+    onError: (err: { response?: { data?: { message?: string } } }) =>
+      toast.error(err.response?.data?.message ?? t('common.error')),
   });
 
   const paymentMutation = useMutation({
     mutationFn: () =>
       invoicesApi.recordPayment(parseInt(id!), {
         amount: paymentAmount ? parseFloat(paymentAmount) : undefined,
-        paidAt: paymentDate ? new Date(paymentDate).toISOString() : undefined,
+        paidAt: paymentDate ? dateOnlyToIso(paymentDate) : undefined,
         method: paymentMethod,
         reference: paymentRef || undefined,
       }),
@@ -85,6 +88,8 @@ export default function InvoiceDetailPage() {
   const deleteMutation = useMutation({
     mutationFn: () => invoicesApi.remove(parseInt(id!)),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['invoices'] }); navigate('/invoices'); },
+    onError: (err: { response?: { data?: { message?: string } } }) =>
+      toast.error(err.response?.data?.message ?? t('common.error')),
   });
 
   const sendMutation = useMutation({
@@ -188,9 +193,9 @@ export default function InvoiceDetailPage() {
   const discountValue = parseFloat(invoice.discountValue);
   const taxRate = parseFloat(invoice.taxRate);
   const taxAmount = parseFloat(invoice.taxAmount);
-  const discountAmount = invoice.discountType === 'PERCENT'
-    ? Math.round(subtotal * discountValue) / 100
-    : invoice.discountType === 'FIXED' ? discountValue : 0;
+  const discountAmount = discountAmountFor(subtotal, invoice.discountType, discountValue);
+  const paidAmount = payments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
+  const outstanding = Math.max(0, Math.round((parseFloat(invoice.total) - paidAmount) * 100) / 100);
 
   return (
     <div className="space-y-6">
@@ -211,8 +216,8 @@ export default function InvoiceDetailPage() {
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          {invoice.status !== 'PAID' && (
-            <Button variant="secondary" size="sm" onClick={() => { setPaymentAmount(invoice.total); setPaymentDate(new Date().toISOString().slice(0, 10)); setPaymentOpen(true); }}>
+          {invoice.status !== 'PAID' && outstanding > 0 && (
+            <Button variant="secondary" size="sm" onClick={() => { setPaymentAmount(String(outstanding)); setPaymentDate(todayLocal()); setPaymentOpen(true); }}>
               <CheckCircle className="h-4 w-4 text-green-600" /> {t('invoiceDetail.markPaid')}
             </Button>
           )}

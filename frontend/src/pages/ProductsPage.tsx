@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Plus, Search, Pencil, Trash2, Package, X, SlidersHorizontal, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -9,6 +9,7 @@ import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
 import { cn } from '../lib/utils';
 import { useCurrency } from '../contexts/CurrencyContext';
+import { useToast } from '../contexts/ToastContext';
 import type { Product } from '../types';
 
 interface ProductForm { name: string; price: string; description: string; }
@@ -40,6 +41,7 @@ export default function ProductsPage() {
     { value: 'price_desc', label: t('products.sortPriceHigh') },
   ];
   const { formatAmount } = useCurrency();
+  const { toast } = useToast();
 
   const [search, setSearch]           = useState('');
   const [sort, setSort]               = useState<SortKey>('newest');
@@ -53,7 +55,7 @@ export default function ProductsPage() {
   const [page, setPage]               = useState(1);
 
   const { data, isLoading } = useQuery({ queryKey: ['products'], queryFn: () => productsApi.list() });
-  const all = data?.data.products ?? [];
+  const all = useMemo(() => data?.data.products ?? [], [data]);
 
   const filtered = useMemo(() => {
     let list = all as Product[];
@@ -77,9 +79,16 @@ export default function ProductsPage() {
 
   const PAGE_SIZE = 10;
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const safePage = Math.min(page, totalPages);
+  const paginated = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
-  useEffect(() => { setPage(1); }, [search, sort, minPrice, maxPrice, hasDesc]);
+  const filterKey = `${search}|${sort}|${minPrice}|${maxPrice}|${hasDesc}`;
+  const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
+  if (filterKey !== prevFilterKey) {
+    // Reset to page 1 when filters change (documented adjust-state-during-render pattern).
+    setPrevFilterKey(filterKey);
+    setPage(1);
+  }
 
   const clearAll = () => {
     setSearch(''); setMinPrice(''); setMaxPrice(''); setHasDesc(false);
@@ -95,11 +104,15 @@ export default function ProductsPage() {
       return modal.product ? productsApi.update(modal.product.id, payload) : productsApi.create(payload);
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['products'] }); closeModal(); },
+    onError: (err: { response?: { data?: { message?: string } } }) =>
+      toast.error(err.response?.data?.message ?? t('common.error')),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => productsApi.remove(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['products'] }); setDeleteId(null); },
+    onError: (err: { response?: { data?: { message?: string } } }) =>
+      toast.error(err.response?.data?.message ?? t('common.error')),
   });
 
   const openCreate = () => { setForm(emptyForm); setModal({ open: true, product: null }); };
@@ -250,14 +263,14 @@ export default function ProductsPage() {
         {totalPages > 1 && (
           <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800 px-5 py-3">
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              {t('products.paginationInfo', { page, total: totalPages, count: filtered.length })}
+              {t('products.paginationInfo', { page: safePage, total: totalPages, count: filtered.length })}
             </p>
             <div className="flex items-center gap-1">
-              <Button variant="ghost" size="sm" disabled={page === 1} onClick={() => setPage(p => p - 1)}>
+              <Button variant="ghost" size="sm" disabled={safePage === 1} onClick={() => setPage(p => p - 1)}>
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                const start = Math.min(Math.max(page - 2, 1), Math.max(totalPages - 4, 1));
+                const start = Math.min(Math.max(safePage - 2, 1), Math.max(totalPages - 4, 1));
                 const pageNum = start + i;
                 if (pageNum > totalPages) return null;
                 return (
@@ -266,7 +279,7 @@ export default function ProductsPage() {
                     onClick={() => setPage(pageNum)}
                     className={cn(
                       'h-7 w-7 rounded text-xs font-medium transition-colors',
-                      page === pageNum
+                      safePage === pageNum
                         ? 'bg-blue-600 text-white'
                         : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
                     )}
@@ -275,7 +288,7 @@ export default function ProductsPage() {
                   </button>
                 );
               })}
-              <Button variant="ghost" size="sm" disabled={page === totalPages} onClick={() => setPage(p => p + 1)}>
+              <Button variant="ghost" size="sm" disabled={safePage === totalPages} onClick={() => setPage(p => p + 1)}>
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>

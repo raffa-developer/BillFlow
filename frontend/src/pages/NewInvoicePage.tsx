@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -9,6 +9,8 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
 import { useCurrency } from '../contexts/CurrencyContext';
+import { calculateInvoiceTotals } from '../lib/invoiceMath';
+import { todayLocal, dateOnlyToIso } from '../lib/utils';
 import type { CreateInvoiceItem, DiscountType } from '../types';
 
 const DRAFT_KEY = 'billflow_new_invoice_draft';
@@ -20,7 +22,12 @@ interface ItemRow extends CreateInvoiceItem {
 let keyCounter = 0;
 const newRow = (): ItemRow => ({ _key: ++keyCounter, description: '', quantity: 1, price: 0, productId: undefined });
 
-const round2 = (n: number) => Math.round(n * 100) / 100;
+const dateFromDays = (days: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+};
 
 interface InvoiceTemplate {
   clientId: number;
@@ -40,7 +47,7 @@ export default function NewInvoicePage() {
 
   const template = (location.state as { template?: InvoiceTemplate } | null)?.template;
 
-  const { data: meData } = useQuery({ queryKey: ['me'], queryFn: () => meApi.get() });
+  const { data: meData, isFetched: meFetched } = useQuery({ queryKey: ['me'], queryFn: () => meApi.get() });
   const userDefaults = meData?.data.user;
 
   const loadDraft = () => {
@@ -48,16 +55,14 @@ export default function NewInvoicePage() {
     try { return JSON.parse(localStorage.getItem(DRAFT_KEY) ?? 'null'); } catch { return null; }
   };
   const draft = loadDraft();
+  const hadDraft = useRef(!!draft);
+  const defaultsApplied = useRef(false);
 
-  const today = new Date().toISOString().slice(0, 10);
-  const defaultDueDays = userDefaults?.defaultPaymentDays ?? 30;
-  const defaultDue = (() => {
-    const d = new Date(); d.setDate(d.getDate() + defaultDueDays); return d.toISOString().slice(0, 10);
-  })();
+  const today = todayLocal();
 
   const [clientId, setClientId] = useState<string>(draft?.clientId ?? (template ? String(template.clientId) : ''));
   const [dateIssued, setDateIssued] = useState<string>(draft?.dateIssued ?? today);
-  const [dueDate, setDueDate] = useState<string>(draft?.dueDate ?? (template ? '' : defaultDue));
+  const [dueDate, setDueDate] = useState<string>(draft?.dueDate ?? '');
   const [items, setItems] = useState<ItemRow[]>(
     draft?.items
       ? draft.items.map((i: CreateInvoiceItem) => ({ ...i, _key: ++keyCounter }))
@@ -67,28 +72,58 @@ export default function NewInvoicePage() {
   );
   const [discountType, setDiscountType] = useState<DiscountType>(draft?.discountType ?? template?.discountType ?? 'NONE');
   const [discountValue, setDiscountValue] = useState<number>(draft?.discountValue ?? template?.discountValue ?? 0);
-  const [taxRate, setTaxRate] = useState<number>(draft?.taxRate ?? template?.taxRate ?? (userDefaults?.defaultTaxRate ?? 0));
+  const [taxRate, setTaxRate] = useState<number>(draft?.taxRate ?? template?.taxRate ?? 0);
   const [notes, setNotes] = useState<string>(draft?.notes ?? template?.notes ?? '');
   const [error, setError] = useState('');
   const [hasDraft, setHasDraft] = useState(!!draft);
 
-  const saveDraft = useCallback(() => {
-    if (template) return;
-    localStorage.setItem(DRAFT_KEY, JSON.stringify({
-      clientId, dateIssued, dueDate,
-      items: items.map(({ _key: _, ...i }) => i),
-      discountType, discountValue, taxRate, notes,
-    }));
-  }, [clientId, dateIssued, dueDate, items, discountType, discountValue, taxRate, notes, template]);
+  // Apply account defaults once they arrive (avoids the cold-load race where
+  // useState initializers run before the ['me'] query resolves).
+  useEffect(() => {
+    if (!meFetched || defaultsApplied.current) return;
+    defaultsApplied.current = true;
+    if (hadDraft.current) return;
+    baselineRef.current = null; // re-baseline the draft snapshot after applying defaults
+    setDueDate((prev) => prev || dateFromDays(userDefaults?.defaultPaymentDays ?? 30));
+    setTaxRate((prev) => (prev === 0 ? userDefaults?.defaultTaxRate ?? 0 : prev));
+  }, [meFetched, userDefaults]);
 
-  useEffect(() => { saveDraft(); }, [saveDraft]);
+  const draftSnapshot = useMemo(
+    () =>
+      JSON.stringify({
+        clientId, dateIssued, dueDate,
+        items: items.map((i) => ({ productId: i.productId, description: i.description, quantity: i.quantity, price: i.price })),
+        discountType, discountValue, taxRate, notes,
+      }),
+    [clientId, dateIssued, dueDate, items, discountType, discountValue, taxRate, notes]
+  );
+
+  const baselineRef = useRef<string | null>(null);
+
+  // Only persist a draft once the form differs from its baseline — opening and
+  // leaving an untouched form must not create a "Draft restored" banner.
+  useEffect(() => {
+    if (template) return;
+    if (baselineRef.current === null) {
+      // eslint-disable-next-line react-hooks/immutability -- draft bookkeeping ref, never rendered
+      baselineRef.current = draftSnapshot;
+      return;
+    }
+    if (draftSnapshot === baselineRef.current) {
+      localStorage.removeItem(DRAFT_KEY);
+    } else {
+      localStorage.setItem(DRAFT_KEY, draftSnapshot);
+    }
+  }, [draftSnapshot, template]);
 
   const discardDraft = () => {
     localStorage.removeItem(DRAFT_KEY);
+    // eslint-disable-next-line react-hooks/immutability -- draft bookkeeping ref, never rendered
+    baselineRef.current = null;
     setHasDraft(false);
     setClientId('');
     setDateIssued(today);
-    setDueDate(defaultDue);
+    setDueDate(dateFromDays(userDefaults?.defaultPaymentDays ?? 30));
     setItems([newRow()]);
     setDiscountType('NONE');
     setDiscountValue(0);
@@ -101,24 +136,23 @@ export default function NewInvoicePage() {
   const clients = clientsData?.data.clients ?? [];
   const products = productsData?.data.products ?? [];
 
-  const totals = useMemo(() => {
-    const subtotal = round2(items.reduce((s, i) => s + i.quantity * i.price, 0));
-    let discountAmount = 0;
-    if (discountType === 'PERCENT') discountAmount = round2((subtotal * discountValue) / 100);
-    else if (discountType === 'FIXED') discountAmount = round2(discountValue);
-    const afterDiscount = Math.max(0, subtotal - discountAmount);
-    const taxAmount = round2((afterDiscount * taxRate) / 100);
-    const total = round2(afterDiscount + taxAmount);
-    return { subtotal, discountAmount, taxAmount, total };
-  }, [items, discountType, discountValue, taxRate]);
+  const totals = useMemo(
+    () => calculateInvoiceTotals({ items, discountType, discountValue, taxRate }),
+    [items, discountType, discountValue, taxRate]
+  );
 
   const createMutation = useMutation({
     mutationFn: () =>
       invoicesApi.create({
         clientId: parseInt(clientId),
-        dateIssued: new Date(dateIssued).toISOString(),
-        dueDate: new Date(dueDate).toISOString(),
-        items: items.map(({ _key, ...item }) => ({ ...item, productId: item.productId ?? undefined })),
+        dateIssued: dateOnlyToIso(dateIssued),
+        dueDate: dateOnlyToIso(dueDate),
+        items: items.map((i) => ({
+          productId: i.productId ?? undefined,
+          description: i.description,
+          quantity: i.quantity,
+          price: i.price,
+        })),
         discountType,
         discountValue,
         taxRate,
@@ -160,7 +194,7 @@ export default function NewInvoicePage() {
     if (!clientId) { setError(t('newInvoice.errNoClient')); return; }
     if (!dueDate) { setError(t('newInvoice.errNoDueDate')); return; }
     if (new Date(dueDate) < new Date(dateIssued)) { setError(t('newInvoice.errDueDateBeforeIssued')); return; }
-    if (items.some((i) => !i.description || i.quantity <= 0 || i.price <= 0)) {
+    if (items.some((i) => !i.description || i.quantity <= 0 || i.price < 0)) {
       setError(t('newInvoice.errInvalidItems'));
       return;
     }

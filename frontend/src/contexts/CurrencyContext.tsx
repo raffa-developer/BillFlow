@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from './AuthContext';
 import { useToast } from './ToastContext';
@@ -47,15 +47,17 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
   const [currency, setCurrencyState] = useState<Currency>(getInitialCurrency);
   const [converting, setConverting] = useState(false);
 
-  // Sync with user's saved currency when auth loads
-  useEffect(() => {
-    if (!user?.currency) return;
+  // Sync with the user's saved currency once auth loads
+  // (adjust-state-during-render pattern; avoids a cascading effect render).
+  const [prevUserCurrency, setPrevUserCurrency] = useState<string | undefined>(user?.currency);
+  if (user?.currency && user.currency !== prevUserCurrency) {
+    setPrevUserCurrency(user.currency);
     const c = user.currency as Currency;
     if (VALID.includes(c)) {
       setCurrencyState(c);
       try { localStorage.setItem(STORAGE_KEY, c); } catch { /* ignore */ }
     }
-  }, [user?.currency]);
+  }
 
   function formatAmount(value: string | number): string {
     const numeric = typeof value === 'string' ? parseFloat(value) : value;

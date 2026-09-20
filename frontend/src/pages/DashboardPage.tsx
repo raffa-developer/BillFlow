@@ -125,7 +125,7 @@ export default function DashboardPage() {
   const invoices = invoicesData?.data.invoices ?? [];
 
   const revenue        = invoices.filter(i => i.status === 'PAID').reduce((s, i) => s + parseFloat(i.total), 0);
-  const pending        = invoices.filter(i => i.status === 'PENDING').reduce((s, i) => s + parseFloat(i.total), 0);
+  const pending        = invoices.filter(i => i.status === 'PENDING' || i.status === 'OVERDUE').reduce((s, i) => s + parseFloat(i.total), 0);
   const hasPaidInvoices = invoices.some(i => i.status === 'PAID');
   const revenueData    = buildRevenueData(invoices, period);
   const recent         = [...invoices].slice(0, 6);

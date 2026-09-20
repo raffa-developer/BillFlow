@@ -72,11 +72,18 @@ export const meApi = {
 };
 
 // Clients
+export type ClientInput = {
+  name?: string;
+  email?: string | null;
+  phone?: string | null;
+  address?: string | null;
+};
+
 export const clientsApi = {
   list: () => api.get<{ clients: Client[] }>('/clients'),
-  create: (data: Omit<Client, 'id' | 'userId'>) =>
+  create: (data: ClientInput & { name: string }) =>
     api.post<{ client: Client }>('/clients', data),
-  update: (id: number, data: Partial<Omit<Client, 'id' | 'userId'>>) =>
+  update: (id: number, data: ClientInput) =>
     api.put<{ client: Client }>(`/clients/${id}`, data),
   remove: (id: number) => api.delete(`/clients/${id}`),
 };
@@ -107,10 +114,6 @@ export const invoicesApi = {
     api.post<{ updated: number }>('/invoices/bulk/mark-paid', { ids }),
   bulkDelete: (ids: number[]) =>
     api.post<{ deleted: number }>('/invoices/bulk/delete', { ids }),
-  pdfUrl: (id: number) => {
-    const token = localStorage.getItem('token');
-    return `/api/invoices/${id}/pdf${token ? `?_t=${encodeURIComponent(token)}` : ''}`;
-  },
   send: (id: number, data: { to?: string; message?: string }) =>
     api.post<{ ok: true; mocked: boolean; recipient: string; publicUrl: string }>(
       `/invoices/${id}/send`,
@@ -127,7 +130,7 @@ export const invoicesApi = {
 // Public invoice (no auth)
 export const publicInvoiceApi = {
   get: (token: string) =>
-    axios.get<{ invoice: Invoice & { user: { companyName?: string; companyAddress?: string; companyVat?: string; companyEmail?: string; companyPhone?: string; companyLogoUrl?: string } } }>(
+    axios.get<{ invoice: Invoice & { user: { companyName?: string; companyAddress?: string; companyVat?: string; companyEmail?: string; companyPhone?: string; companyLogoUrl?: string; currency?: string } } }>(
       `/api/public/invoices/${token}`
     ),
   pdfUrl: (token: string) => `/api/public/invoices/${token}/pdf`,
