@@ -5,6 +5,7 @@ import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/
 import { Rail } from './Rail';
 import { Flyout } from './Flyout';
 import { Topbar } from './Topbar';
+import { CommandPalette } from './CommandPalette';
 import { NAV_SECTIONS, activeSectionId } from './nav';
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -13,6 +14,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [peek, setPeek] = useState<string | null>(() => activeSectionId(pathname));
   const [pinned, setPinned] = useState<string | null>(null);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [commandOpen, setCommandOpen] = useState(false);
   const [prevPathname, setPrevPathname] = useState(pathname);
   const closeTimer = useRef<number | null>(null);
   const navRef = useRef<HTMLDivElement>(null);
@@ -39,9 +41,15 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setCommandOpen((v) => !v);
+        return;
+      }
       if (e.key === 'Escape') {
         setPinned(null);
         setPeek(null);
+        setCommandOpen(false);
       }
     };
     window.addEventListener('keydown', onKey);
@@ -102,13 +110,15 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar
-          onOpenCommand={() => { /* wired in Task 6 */ }}
+          onOpenCommand={() => setCommandOpen(true)}
           onOpenMobileNav={() => setMobileNavOpen(true)}
         />
         <main className="flex-1 overflow-y-auto">
           <div className="mx-auto max-w-6xl px-4 py-6 lg:px-8 lg:py-8">{children}</div>
         </main>
       </div>
+
+      <CommandPalette open={commandOpen} onOpenChange={setCommandOpen} />
     </div>
   );
 }

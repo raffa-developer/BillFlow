@@ -21,6 +21,9 @@ const de: Translations = {
     searchPlaceholder: 'Seiten und Aktionen suchen…',
     lightMode: 'Zum hellen Modus wechseln',
     darkMode: 'Zum dunklen Modus wechseln',
+    actions: 'Aktionen',
+    newInvoice: 'Neue Rechnung',
+    toggleTheme: 'Design wechseln',
   },
   common: {
     save: 'Speichern',

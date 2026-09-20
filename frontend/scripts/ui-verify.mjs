@@ -94,7 +94,16 @@ async function run() {
   await page.waitForTimeout(200);
   check('escape closes flyout', (await page.getByTestId('nav-flyout').count()) === 0);
 
-  // --- palette checks (Task 6) ---
+  // --- command palette (Task 6) ---
+  await goto('/');
+  await page.keyboard.press('Control+k');
+  await page.waitForTimeout(400);
+  check('command palette opens', await page.getByTestId('command-input').isVisible());
+  await page.getByTestId('command-input').fill('invoices');
+  await page.waitForTimeout(300);
+  await page.getByTestId('command-item-invoices').click();
+  await page.waitForLoadState('networkidle');
+  check('palette navigates', page.url().includes('/invoices'));
   // --- badge checks (Task 7) ---
   // Later tasks append their assertions above this line.
 

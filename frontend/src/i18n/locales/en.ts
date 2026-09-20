@@ -19,6 +19,9 @@ const en = {
     searchPlaceholder: 'Search pages and actions…',
     lightMode: 'Switch to light mode',
     darkMode: 'Switch to dark mode',
+    actions: 'Actions',
+    newInvoice: 'New invoice',
+    toggleTheme: 'Toggle theme',
   },
   common: {
     save: 'Save',

@@ -21,6 +21,9 @@ const pt: Translations = {
     searchPlaceholder: 'Pesquisar páginas e ações…',
     lightMode: 'Mudar para modo claro',
     darkMode: 'Mudar para modo escuro',
+    actions: 'Ações',
+    newInvoice: 'Nova fatura',
+    toggleTheme: 'Alternar tema',
   },
   common: {
     save: 'Guardar',
