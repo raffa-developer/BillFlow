@@ -312,8 +312,8 @@ const fail = (label, detail = '') => {
   await goTo('/invoices');
 
   try {
-    const rows = await page.locator('table tbody tr').count();
-    if (rows > 0) pass(`Invoice list: ${rows} row(s) in table`);
+    const rows = await page.locator('[data-testid^="invoice-row-"]').count();
+    if (rows > 0) pass(`Invoice list: ${rows} row(s) in ledger`);
     else fail('Invoice table rows', 'none found');
   } catch (e) { fail('Invoice list', e.message); }
 
@@ -343,7 +343,7 @@ const fail = (label, detail = '') => {
     if (invoiceId) {
       await page.goto(`${BASE}/invoices/${invoiceId}`);
     } else {
-      await page.locator('table tbody tr').first().click();
+      await page.locator('[data-testid^="invoice-row-"]').first().click();
     }
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(800);

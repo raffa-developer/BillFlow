@@ -129,6 +129,19 @@ async function run() {
   check('recent invoice link navigates', page.url().includes('/invoices/'));
   await goto('/');
 
+  // --- invoices ledger (Task 4) ---
+  await goto('/invoices');
+  check('ledger group header present', (await page.locator('[data-testid^="invoice-group-"]').count()) > 0);
+  const firstRow = page.locator('[data-testid^="invoice-row-"]').first();
+  check('ledger row present', await firstRow.isVisible());
+  await firstRow.locator('input[type=checkbox]').click();
+  await page.waitForTimeout(200);
+  check('bulk bar appears on selection', await page.getByTestId('bulk-bar').isVisible());
+  await page.keyboard.press('Escape');
+  await firstRow.click();
+  await page.waitForLoadState('networkidle');
+  check('ledger row opens detail', /\/invoices\/\d+/.test(page.url()));
+
   // Later tasks append their assertions above this line.
 
   // --- toast adapter (Task 4) ---

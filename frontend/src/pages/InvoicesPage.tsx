@@ -1,17 +1,20 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Plus, FileText, Trash2, Eye, Search, X, SlidersHorizontal, ChevronLeft, ChevronRight, CheckCheck } from 'lucide-react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Plus, FileText, Search, X, SlidersHorizontal, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useLegacyTable, getCoreRowModel, getSortedRowModel, getFilteredRowModel } from '@tanstack/react-table/legacy';
+import type { LegacyColumnDef } from '@tanstack/react-table/legacy';
+import type { ColumnFiltersState, RowSelectionState, SortingState, Updater } from '@tanstack/react-table';
 import { invoicesApi } from '../lib/api';
-import { Card } from '../components/ui/CardLegacy';
-import { Button } from '../components/ui/ButtonLegacy';
-import { StatusBadge } from '../components/ui/BadgeLegacy';
-import { Modal } from '../components/ui/ModalLegacy';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { StatusBadge } from '@/components/ui/BadgeLegacy';
+import { Modal } from '@/components/ui/ModalLegacy';
 import { formatDate, cn } from '../lib/utils';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useToast } from '../contexts/ToastContext';
-import type { Invoice, InvoiceStatus } from '../types';
+import type { Invoice } from '../types';
 
 type SortKey = 'date_desc' | 'date_asc' | 'due_asc' | 'due_desc' | 'total_desc' | 'total_asc' | 'number_asc';
 
@@ -22,25 +25,22 @@ const STATUS_COLORS: Record<string, string> = {
   'OVERDUE': 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
 };
 
-function applySort(list: Invoice[], sort: SortKey): Invoice[] {
-  return [...list].sort((a, b) => {
-    switch (sort) {
-      case 'date_desc':  return new Date(b.dateIssued).getTime() - new Date(a.dateIssued).getTime();
-      case 'date_asc':   return new Date(a.dateIssued).getTime() - new Date(b.dateIssued).getTime();
-      case 'due_asc':    return new Date(a.dueDate).getTime()    - new Date(b.dueDate).getTime();
-      case 'due_desc':   return new Date(b.dueDate).getTime()    - new Date(a.dueDate).getTime();
-      case 'total_desc': return parseFloat(b.total) - parseFloat(a.total);
-      case 'total_asc':  return parseFloat(a.total) - parseFloat(b.total);
-      case 'number_asc': return a.number.localeCompare(b.number);
-    }
-  });
-}
+const SORT_TO_STATE: Record<SortKey, SortingState> = {
+  date_desc:  [{ id: 'issued', desc: true }],
+  date_asc:   [{ id: 'issued', desc: false }],
+  due_asc:    [{ id: 'issued', desc: false }],
+  due_desc:   [{ id: 'issued', desc: true }],
+  total_desc: [{ id: 'total', desc: true }],
+  total_asc:  [{ id: 'total', desc: false }],
+  number_asc: [{ id: 'number', desc: false }],
+};
 
 const PAGE_SIZE = 10;
 
 export default function InvoicesPage() {
   const { t } = useTranslation();
   const qc = useQueryClient();
+  const navigate = useNavigate();
 
   const STATUS_OPTS = [
     { value: '',        label: t('invoices.filterAll') },
@@ -74,16 +74,18 @@ export default function InvoicesPage() {
   const [showFilters, setShowFilters]     = useState(false);
   const [deleteId, setDeleteId]           = useState<number | null>(null);
   const [page, setPage]                   = useState(1);
-  const [selected, setSelected]           = useState<Set<number>>(new Set());
+  const [rowSelection, setRowSelection]   = useState<RowSelectionState>({});
+  const [sorting, setSorting]             = useState<SortingState>(SORT_TO_STATE[sort] ?? SORT_TO_STATE.date_desc);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
   const filterKey = `${search}|${statusFilter}|${dateFrom}|${dateTo}|${minTotal}|${maxTotal}|${sort}`;
   const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
   if (filterKey !== prevFilterKey) {
-    // Reset pagination/selection when filters change (adjust-state-during-render pattern).
+    // Reset pagination/selection/sorting when filters change (adjust-state-during-render pattern).
     setPrevFilterKey(filterKey);
     setPage(1);
-    setSelected(new Set());
+    setRowSelection({});
+    setSorting(SORT_TO_STATE[sort] ?? SORT_TO_STATE.date_desc);
   }
 
   const setParam = (key: string, value: string) => {
@@ -108,27 +110,88 @@ export default function InvoicesPage() {
   });
   const all = useMemo(() => data?.data.invoices ?? [], [data]);
 
-  const filtered = useMemo(() => {
-    let list = all as Invoice[];
-    if (statusFilter) list = list.filter(i => i.status === statusFilter);
-    if (search.trim()) {
-      const q = search.trim().toLowerCase();
-      list = list.filter(i =>
-        i.number.toLowerCase().includes(q) ||
-        i.client.name.toLowerCase().includes(q) ||
-        String(i.id).includes(q)
-      );
-    }
-    if (dateFrom) list = list.filter(i => new Date(i.dateIssued) >= new Date(dateFrom));
-    if (dateTo)   list = list.filter(i => new Date(i.dateIssued) <= new Date(dateTo + 'T23:59:59'));
-    if (minTotal) list = list.filter(i => parseFloat(i.total) >= parseFloat(minTotal));
-    if (maxTotal) list = list.filter(i => parseFloat(i.total) <= parseFloat(maxTotal));
-    return applySort(list, sort);
-  }, [all, search, statusFilter, dateFrom, dateTo, minTotal, maxTotal, sort]);
+  const columnFilters = useMemo<ColumnFiltersState>(() => [
+    ...(statusFilter ? [{ id: 'status', value: statusFilter }] : []),
+    ...(dateFrom || dateTo ? [{ id: 'issued', value: dateFrom || dateTo }] : []),
+    ...(minTotal || maxTotal ? [{ id: 'total', value: minTotal || maxTotal }] : []),
+  ], [statusFilter, dateFrom, dateTo, minTotal, maxTotal]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const safePage   = Math.min(page, totalPages);
-  const paginated  = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const columns = useMemo<LegacyColumnDef<Invoice>[]>(() => [
+    { id: 'select', header: () => null, cell: () => null, enableSorting: false },
+    { id: 'number', accessorFn: (i) => i.number, header: t('invoices.colNumber') },
+    { id: 'client', accessorFn: (i) => i.client.name, header: t('invoices.colClient') },
+    {
+      id: 'issued',
+      accessorFn: (i) => new Date(i.dateIssued).getTime(),
+      header: t('invoices.colIssued'),
+      enableGlobalFilter: false,
+      filterFn: (row) => {
+        const issued = row.getValue<number>('issued');
+        if (dateFrom && issued < new Date(dateFrom).getTime()) return false;
+        if (dateTo && issued > new Date(dateTo + 'T23:59:59').getTime()) return false;
+        return true;
+      },
+    },
+    {
+      id: 'status',
+      accessorFn: (i) => i.status,
+      header: t('invoices.colStatus'),
+      enableGlobalFilter: false,
+      filterFn: (row, id, value) => row.getValue(id) === value,
+    },
+    {
+      id: 'total',
+      accessorFn: (i) => parseFloat(i.total),
+      header: t('invoices.colTotal'),
+      enableGlobalFilter: false,
+      filterFn: (row) => {
+        const total = row.getValue<number>('total');
+        if (minTotal && total < parseFloat(minTotal)) return false;
+        if (maxTotal && total > parseFloat(maxTotal)) return false;
+        return true;
+      },
+    },
+  ], [t, dateFrom, dateTo, minTotal, maxTotal]);
+
+  const handleSortingChange = (updater: Updater<SortingState>) => {
+    const next = typeof updater === 'function' ? updater(sorting) : updater;
+    setSorting(next);
+    const first = next[0];
+    if (!first) return;
+    const key = (Object.entries(SORT_TO_STATE).find(([, s]) => s[0]?.id === first.id && s[0]?.desc === first.desc)?.[0] ?? 'date_desc') as SortKey;
+    setParam('sort', key);
+  };
+
+  const table = useLegacyTable({
+    data: all,
+    columns,
+    state: {
+      sorting,
+      rowSelection,
+      globalFilter: search,
+      columnFilters,
+    },
+    onSortingChange: handleSortingChange,
+    onRowSelectionChange: setRowSelection,
+    globalFilterFn: 'includesString',
+    getRowId: (row) => String(row.id),
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+  });
+
+  const selectedIds = useMemo(() => new Set(Object.keys(rowSelection).map(Number)), [rowSelection]);
+  const filteredRows = table.getSortedRowModel().rows;
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const rows = filteredRows.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
+  const grouped = new Map<string, typeof rows>();
+  for (const row of rows) {
+    const key = row.original.dateIssued.slice(0, 7); // yyyy-mm
+    grouped.set(key, [...(grouped.get(key) ?? []), row]);
+  }
+
   const hasActiveFilters = !!(search || statusFilter || dateFrom || dateTo || minTotal || maxTotal);
 
   const deleteMutation = useMutation({
@@ -139,39 +202,18 @@ export default function InvoicesPage() {
   });
 
   const bulkMarkPaidMutation = useMutation({
-    mutationFn: () => invoicesApi.bulkMarkPaid(Array.from(selected)),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['invoices'] }); setSelected(new Set()); },
+    mutationFn: () => invoicesApi.bulkMarkPaid(Array.from(selectedIds)),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['invoices'] }); setRowSelection({}); },
     onError: (err: { response?: { data?: { message?: string } } }) =>
       toast.error(err.response?.data?.message ?? t('common.error')),
   });
 
   const bulkDeleteMutation = useMutation({
-    mutationFn: () => invoicesApi.bulkDelete(Array.from(selected)),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['invoices'] }); setSelected(new Set()); setBulkDeleteOpen(false); },
+    mutationFn: () => invoicesApi.bulkDelete(Array.from(selectedIds)),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['invoices'] }); setRowSelection({}); setBulkDeleteOpen(false); },
     onError: (err: { response?: { data?: { message?: string } } }) =>
       toast.error(err.response?.data?.message ?? t('common.error')),
   });
-
-  const pageIds = paginated.map(i => i.id);
-  const allPageSelected = pageIds.length > 0 && pageIds.every(id => selected.has(id));
-  const somePageSelected = pageIds.some(id => selected.has(id));
-
-  const toggleAll = () => {
-    if (allPageSelected) {
-      setSelected(prev => { const n = new Set(prev); pageIds.forEach(id => n.delete(id)); return n; });
-    } else {
-      setSelected(prev => { const n = new Set(prev); pageIds.forEach(id => n.add(id)); return n; });
-    }
-  };
-
-  const toggleOne = (id: number) => {
-    setSelected(prev => {
-      const n = new Set(prev);
-      if (n.has(id)) n.delete(id);
-      else n.add(id);
-      return n;
-    });
-  };
 
   return (
     <div className="space-y-5">
@@ -180,7 +222,7 @@ export default function InvoicesPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{t('invoices.title')}</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-            {t('invoices.countFiltered', { filtered: filtered.length, total: all.length })}
+            {t('invoices.countFiltered', { filtered: filteredRows.length, total: all.length })}
           </p>
         </div>
         <Link to="/invoices/new">
@@ -283,209 +325,167 @@ export default function InvoicesPage() {
         </div>
       )}
 
-      {/* Bulk action bar */}
-      {selected.size > 0 && (
-        <div className="flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30 px-4 py-2.5">
-          <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
-            {t('invoices.selected', { count: selected.size })}
-          </span>
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => bulkMarkPaidMutation.mutate()}
-              loading={bulkMarkPaidMutation.isPending}
-            >
-              <CheckCheck className="h-3.5 w-3.5" /> {t('invoices.markAsPaid')}
-            </Button>
-            <Button
-              size="sm"
-              variant="danger"
-              onClick={() => setBulkDeleteOpen(true)}
-            >
-              <Trash2 className="h-3.5 w-3.5" /> Delete
-            </Button>
-            <button
-              onClick={() => setSelected(new Set())}
-              className="ml-1 text-blue-500 hover:text-blue-700 dark:text-blue-400"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Table */}
-      <Card>
+      {/* Ledger */}
+      <Card className="overflow-hidden">
         {isLoading ? (
           <div className="flex justify-center py-12">
-            <div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
           </div>
-        ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-16 text-slate-400 dark:text-slate-500">
+        ) : filteredRows.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 py-16 text-muted-foreground">
             <FileText className="h-8 w-8" />
             <p className="text-sm font-medium">{hasActiveFilters ? t('invoices.noMatch') : t('invoices.none')}</p>
             {hasActiveFilters
-              ? <button onClick={clearAll} className="text-xs text-blue-500 hover:underline">{t('common.clearFilters')}</button>
+              ? <button onClick={clearAll} className="text-xs text-primary hover:underline">{t('common.clearFilters')}</button>
               : <Link to="/invoices/new"><Button variant="secondary" size="sm"><Plus className="h-3.5 w-3.5" /> {t('invoices.new')}</Button></Link>
             }
           </div>
         ) : (
           <>
-            {/* Mobile cards */}
-            <div className="divide-y divide-slate-100 dark:divide-slate-800 sm:hidden">
-              {paginated.map((inv) => (
-                <div key={inv.id} className="flex items-start gap-3 px-4 py-3.5">
-                  <input
-                    type="checkbox"
-                    checked={selected.has(inv.id)}
-                    onChange={() => toggleOne(inv.id)}
-                    className="mt-1 h-4 w-4 shrink-0 rounded border-slate-300 accent-blue-600"
-                  />
-                  <Link to={`/invoices/${inv.id}`} className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-mono text-xs font-medium text-slate-500 dark:text-slate-400">{inv.number}</span>
-                      <StatusBadge status={inv.status as InvoiceStatus} />
-                    </div>
-                    <p className="font-medium text-slate-800 dark:text-slate-100 truncate">{inv.client.name}</p>
-                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{t('invoices.colDue')}: {formatDate(inv.dueDate)}</p>
-                  </Link>
-                  <div className="flex flex-col items-end gap-1">
-                    <span className="font-semibold text-slate-700 dark:text-slate-200 tabular-nums">{formatAmount(inv.total)}</span>
-                    <div className="flex gap-1">
-                      <Link to={`/invoices/${inv.id}`}>
-                        <Button variant="ghost" size="sm"><Eye className="h-3.5 w-3.5" /></Button>
-                      </Link>
-                      <Button variant="ghost" size="sm" onClick={() => setDeleteId(inv.id)} className="text-red-500 hover:text-red-600">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </div>
+            {/* Desktop ledger */}
+            <div className="hidden overflow-x-auto sm:block">
+              {[...grouped.entries()].map(([month, monthRows]) => (
+                <div key={month}>
+                  <p
+                    data-testid={`invoice-group-${month}`}
+                    className="bg-muted/50 px-5 py-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground"
+                  >
+                    {new Date(`${month}-01T12:00:00Z`).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
+                  </p>
+                  {monthRows.map((row) => {
+                    const inv = row.original;
+                    const selected = row.getIsSelected();
+                    return (
+                      <div
+                        key={inv.id}
+                        data-testid={`invoice-row-${inv.id}`}
+                        onClick={() => navigate(`/invoices/${inv.id}`)}
+                        className={cn(
+                          'group flex cursor-pointer items-center gap-3 border-b border-border px-5 py-3 transition-colors last:border-b-0 hover:bg-muted/40',
+                          selected && 'bg-primary/5'
+                        )}
+                      >
+                        <input
+                          type="checkbox"
+                          data-testid={`invoice-select-${inv.id}`}
+                          checked={selected}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={row.getToggleSelectedHandler()}
+                          className="h-3.5 w-3.5 rounded border-border accent-primary"
+                        />
+                        <span className="w-24 font-mono text-xs font-bold text-foreground">{inv.number}</span>
+                        <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">{inv.client.name}</span>
+                        <StatusBadge status={inv.status} className="shrink-0" />
+                        <span className="w-28 shrink-0 text-right font-mono text-sm font-bold tabular-nums text-foreground">
+                          {formatAmount(parseFloat(inv.total))}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               ))}
             </div>
-            {/* Desktop table */}
-            <div className="hidden overflow-x-auto sm:block">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-slate-200 dark:border-slate-800">
-                    <th className="w-10 px-3 py-3">
-                      <input
-                        type="checkbox"
-                        checked={allPageSelected}
-                        ref={el => { if (el) el.indeterminate = somePageSelected && !allPageSelected; }}
-                        onChange={toggleAll}
-                        className="h-4 w-4 rounded border-slate-300 accent-blue-600"
-                      />
-                    </th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('invoices.colNumber')}</th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('invoices.colClient')}</th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('invoices.colIssued')}</th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('invoices.colDue')}</th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('common.status')}</th>
-                    <th className="px-5 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('common.total')}</th>
-                    <th className="px-5 py-3" />
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {paginated.map((inv) => (
-                    <tr key={inv.id} className={cn('hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors', selected.has(inv.id) && 'bg-blue-50/50 dark:bg-blue-950/20')}>
-                      <td className="w-10 px-3 py-3.5">
-                        <input
-                          type="checkbox"
-                          checked={selected.has(inv.id)}
-                          onChange={() => toggleOne(inv.id)}
-                          className="h-4 w-4 rounded border-slate-300 accent-blue-600"
-                        />
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <span className="font-mono text-xs font-medium text-slate-700 dark:text-slate-300">{inv.number}</span>
-                      </td>
-                      <td className="px-5 py-3.5 font-medium text-slate-800 dark:text-slate-200">{inv.client.name}</td>
-                      <td className="px-5 py-3.5 text-slate-500 dark:text-slate-400">{formatDate(inv.dateIssued)}</td>
-                      <td className="px-5 py-3.5 text-slate-500 dark:text-slate-400">{formatDate(inv.dueDate)}</td>
-                      <td className="px-5 py-3.5"><StatusBadge status={inv.status as InvoiceStatus} /></td>
-                      <td className="px-5 py-3.5 text-right">
-                        <span className="font-semibold text-slate-700 dark:text-slate-300">{formatAmount(inv.total)}</span>
-                        {(parseFloat(inv.taxRate) > 0 || inv.discountType !== 'NONE') && (
-                          <p className="text-[10px] text-slate-400 dark:text-slate-500 tabular-nums mt-0.5">
-                            {inv.discountType !== 'NONE' && `-${inv.discountType === 'PERCENT' ? inv.discountValue + '%' : formatAmount(inv.discountValue)}`}
-                            {inv.discountType !== 'NONE' && parseFloat(inv.taxRate) > 0 && ' · '}
-                            {parseFloat(inv.taxRate) > 0 && t('invoices.vatSubline', { rate: inv.taxRate })}
-                          </p>
-                        )}
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <div className="flex justify-end gap-1">
-                          <Link to={`/invoices/${inv.id}`}>
-                            <Button variant="ghost" size="sm"><Eye className="h-3.5 w-3.5" /></Button>
-                          </Link>
-                          <Button variant="ghost" size="sm" onClick={() => setDeleteId(inv.id)} className="text-red-500 hover:text-red-600">
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+
+            {/* Mobile cards */}
+            <div className="sm:hidden">
+              {rows.map((row) => {
+                const inv = row.original;
+                const selected = row.getIsSelected();
+                return (
+                  <div
+                    key={inv.id}
+                    data-testid={`invoice-card-${inv.id}`}
+                    onClick={() => navigate(`/invoices/${inv.id}`)}
+                    className={cn(
+                      'flex cursor-pointer items-start gap-3 border-b border-border px-4 py-3.5 last:border-b-0',
+                      selected && 'bg-primary/5'
+                    )}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selected}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={row.getToggleSelectedHandler()}
+                      className="mt-1 h-4 w-4 shrink-0 rounded border-border accent-primary"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-1 flex items-center gap-2">
+                        <span className="font-mono text-xs font-medium text-muted-foreground">{inv.number}</span>
+                        <StatusBadge status={inv.status} />
+                      </div>
+                      <p className="truncate font-medium text-foreground">{inv.client.name}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">{t('invoices.colDue')}: {formatDate(inv.dueDate)}</p>
+                    </div>
+                    <span className="shrink-0 font-mono font-semibold tabular-nums text-foreground">{formatAmount(parseFloat(inv.total))}</span>
+                  </div>
+                );
+              })}
             </div>
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800 px-5 py-3">
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  {t('invoices.paginationInfo', { page: safePage, total: totalPages, count: filtered.length })}
-                </p>
-                <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="sm" disabled={safePage === 1} onClick={() => setPage(p => p - 1)}>
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                    const start = Math.min(Math.max(safePage - 2, 1), Math.max(totalPages - 4, 1));
-                    const pageNum = start + i;
-                    if (pageNum > totalPages) return null;
-                    return (
-                      <button
-                        key={pageNum}
-                        onClick={() => setPage(pageNum)}
-                        className={cn(
-                          'h-7 w-7 rounded text-xs font-medium transition-colors',
-                          safePage === pageNum
-                            ? 'bg-blue-600 text-white'
-                            : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
-                        )}
-                      >
-                        {pageNum}
-                      </button>
-                    );
-                  })}
-                  <Button variant="ghost" size="sm" disabled={safePage === totalPages} onClick={() => setPage(p => p + 1)}>
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            )}
           </>
+        )}
+
+        {!isLoading && filteredRows.length > 0 && totalPages > 1 && (
+          <div className="flex items-center justify-between border-t border-border px-5 py-3">
+            <p className="text-xs text-muted-foreground">
+              {t('invoices.paginationInfo', { page: safePage, total: totalPages, count: filteredRows.length })}
+            </p>
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="sm" disabled={safePage === 1} onClick={() => setPage(p => p - 1)}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                const start = Math.min(Math.max(safePage - 2, 1), Math.max(totalPages - 4, 1));
+                const pageNum = start + i;
+                if (pageNum > totalPages) return null;
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setPage(pageNum)}
+                    className={cn(
+                      'h-7 w-7 rounded text-xs font-medium transition-colors',
+                      safePage === pageNum
+                        ? 'bg-primary text-primary-foreground'
+                        : 'text-muted-foreground hover:bg-muted'
+                    )}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+              <Button variant="ghost" size="sm" disabled={safePage === totalPages} onClick={() => setPage(p => p + 1)}>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
         )}
       </Card>
 
+      {selectedIds.size > 0 && (
+        <div data-testid="bulk-bar" className="fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-4 rounded-xl bg-sidebar-background px-4 py-2.5 text-xs font-semibold text-sidebar-foreground shadow-lg">
+          <span>{t('invoices.selected', { count: selectedIds.size })}</span>
+          <button className="text-accent" onClick={() => bulkMarkPaidMutation.mutate()}>{t('invoices.bulkMarkPaid')}</button>
+          <button className="text-[#ef9a9a]" onClick={() => setBulkDeleteOpen(true)}>{t('common.delete')}</button>
+        </div>
+      )}
+
       <Modal open={deleteId !== null} onClose={() => setDeleteId(null)} title={t('invoices.deleteTitle')}>
-        <p className="text-sm text-slate-600 dark:text-slate-400 mb-5">{t('invoices.deleteConfirm')}</p>
+        <p className="text-sm text-muted-foreground mb-5">{t('invoices.deleteConfirm')}</p>
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={() => setDeleteId(null)}>{t('common.cancel')}</Button>
-          <Button variant="danger" loading={deleteMutation.isPending} onClick={() => deleteId !== null && deleteMutation.mutate(deleteId)}>
+          <Button variant="destructive" disabled={deleteMutation.isPending} onClick={() => deleteId !== null && deleteMutation.mutate(deleteId)}>
             {t('common.delete')}
           </Button>
         </div>
       </Modal>
 
       <Modal open={bulkDeleteOpen} onClose={() => setBulkDeleteOpen(false)} title={t('invoices.bulkDeleteTitle')}>
-        <p className="text-sm text-slate-600 dark:text-slate-400 mb-5">
-          {t('invoices.bulkDeleteConfirm', { count: selected.size })}
+        <p className="text-sm text-muted-foreground mb-5">
+          {t('invoices.bulkDeleteConfirm', { count: selectedIds.size })}
         </p>
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={() => setBulkDeleteOpen(false)}>{t('common.cancel')}</Button>
-          <Button variant="danger" loading={bulkDeleteMutation.isPending} onClick={() => bulkDeleteMutation.mutate()}>
-            {t('common.delete')} {selected.size}
+          <Button variant="destructive" disabled={bulkDeleteMutation.isPending} onClick={() => bulkDeleteMutation.mutate()}>
+            {t('common.delete')} {selectedIds.size}
           </Button>
         </div>
       </Modal>
