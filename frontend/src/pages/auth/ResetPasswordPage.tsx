@@ -3,8 +3,8 @@ import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Receipt, CheckCircle2 } from 'lucide-react';
 import { authApi } from '../../lib/api';
-import { Button } from '../../components/ui/Button';
-import { Input } from '../../components/ui/Input';
+import { Button } from '../../components/ui/ButtonLegacy';
+import { Input } from '../../components/ui/InputLegacy';
 
 export default function ResetPasswordPage() {
   const { t } = useTranslation();

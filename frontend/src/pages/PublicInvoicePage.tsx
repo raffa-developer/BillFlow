@@ -5,7 +5,7 @@ import { Download, Mail, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { publicInvoiceApi } from '../lib/api';
 import { formatDate } from '../lib/utils';
 import { discountAmountFor } from '../lib/invoiceMath';
-import { StatusBadge } from '../components/ui/Badge';
+import { StatusBadge } from '../components/ui/BadgeLegacy';
 
 export default function PublicInvoicePage() {
   const { t } = useTranslation();

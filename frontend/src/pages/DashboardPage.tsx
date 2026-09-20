@@ -4,8 +4,8 @@ import { Users, Package, FileText, TrendingUp, ArrowUpRight } from 'lucide-react
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { clientsApi, productsApi, invoicesApi } from '../lib/api';
-import { Card } from '../components/ui/Card';
-import { StatusBadge } from '../components/ui/Badge';
+import { Card } from '../components/ui/CardLegacy';
+import { StatusBadge } from '../components/ui/BadgeLegacy';
 import { formatDate, cn } from '../lib/utils';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTheme } from '../contexts/ThemeContext';

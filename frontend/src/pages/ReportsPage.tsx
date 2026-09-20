@@ -5,9 +5,9 @@ import {
   FileText, Table2, Printer, ChevronDown,
 } from 'lucide-react';
 import { invoicesApi } from '../lib/api';
-import { Card } from '../components/ui/Card';
-import { Button } from '../components/ui/Button';
-import { StatusBadge } from '../components/ui/Badge';
+import { Card } from '../components/ui/CardLegacy';
+import { Button } from '../components/ui/ButtonLegacy';
+import { StatusBadge } from '../components/ui/BadgeLegacy';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { formatDate, cn } from '../lib/utils';

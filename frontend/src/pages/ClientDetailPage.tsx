@@ -3,9 +3,9 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft, FileText, Mail, Phone, MapPin } from 'lucide-react';
 import { clientsApi, invoicesApi } from '../lib/api';
-import { Card } from '../components/ui/Card';
-import { Button } from '../components/ui/Button';
-import { StatusBadge } from '../components/ui/Badge';
+import { Card } from '../components/ui/CardLegacy';
+import { Button } from '../components/ui/ButtonLegacy';
+import { StatusBadge } from '../components/ui/BadgeLegacy';
 import { formatDate } from '../lib/utils';
 import { useCurrency } from '../contexts/CurrencyContext';
 
