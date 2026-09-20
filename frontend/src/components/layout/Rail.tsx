@@ -6,10 +6,11 @@ import { NAV_SECTIONS, activeSectionId } from './nav';
 interface RailProps {
   openSection: string | null;
   onPeek: (section: string) => void;
+  onPin: (section: string) => void;
   onTogglePin: (section: string) => void;
 }
 
-export function Rail({ openSection, onPeek, onTogglePin }: RailProps) {
+export function Rail({ openSection, onPeek, onPin, onTogglePin }: RailProps) {
   const { t } = useTranslation();
   const { pathname } = useLocation();
   const active = activeSectionId(pathname);
@@ -32,6 +33,15 @@ export function Rail({ openSection, onPeek, onTogglePin }: RailProps) {
             aria-expanded={isOpen}
             onMouseEnter={() => onPeek(section.id)}
             onFocus={() => onPeek(section.id)}
+            onKeyDown={(e) => {
+              if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                onPin(section.id);
+                requestAnimationFrame(() =>
+                  document.querySelector<HTMLElement>('[data-testid="nav-item-' + section.items[0].id + '"]')?.focus()
+                );
+              }
+            }}
             onClick={() => onTogglePin(section.id)}
             className={cn(
               'flex h-9 w-9 items-center justify-center rounded-lg text-sidebar-foreground/70 transition-colors',

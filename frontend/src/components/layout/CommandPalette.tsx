@@ -1,8 +1,9 @@
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
-  CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandShortcut,
+  CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
 } from '@/components/ui/command';
+import { DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { useTheme } from '@/contexts/ThemeContext';
 import { NAV_SECTIONS } from './nav';
 
@@ -20,6 +21,8 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
 
   return (
     <CommandDialog open={open} onOpenChange={onOpenChange}>
+      <DialogTitle className="sr-only">{t('nav.commandPalette')}</DialogTitle>
+      <DialogDescription className="sr-only">{t('nav.searchPlaceholder')}</DialogDescription>
       <CommandInput data-testid="command-input" placeholder={t('nav.searchPlaceholder')} />
       <CommandList>
         <CommandEmpty>{t('common.noResults')}</CommandEmpty>
@@ -44,7 +47,6 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
           </CommandItem>
           <CommandItem value={t('nav.toggleTheme')} onSelect={() => { toggleTheme(); onOpenChange(false); }}>
             {theme === 'dark' ? t('nav.lightMode') : t('nav.darkMode')}
-            <CommandShortcut>⌘T</CommandShortcut>
           </CommandItem>
         </CommandGroup>
       </CommandList>

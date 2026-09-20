@@ -55,6 +55,12 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+}
+
 :root {
   --background: #eeeeee;
   --foreground: #424242;
@@ -125,18 +131,6 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background-color: var(--background);
   color: var(--foreground);
-}
-
-.sidebar-enter {
-  transform: translateX(-100%);
-}
-.sidebar-enter-active {
-  transform: translateX(0);
-  transition: transform 250ms ease;
-}
-.sidebar-exit-active {
-  transform: translateX(-100%);
-  transition: transform 250ms ease;
 }
 
 html {

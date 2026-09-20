@@ -10,6 +10,8 @@ const en = {
     menu: 'Menu',
     language: 'Language',
     currency: 'Currency',
+    commandPalette: 'Command palette',
+    account: 'Account',
     collapse: 'Collapse',
     expandSidebar: 'Expand sidebar',
     collapseSidebar: 'Collapse sidebar',

@@ -98,6 +98,7 @@ export function Topbar({ onOpenCommand, onOpenMobileNav }: TopbarProps) {
       <div ref={accountRef} className="relative">
         <button
           data-testid="topbar-account"
+          aria-label={t('nav.account')}
           aria-haspopup="menu"
           aria-expanded={accountOpen}
           onClick={() => setAccountOpen((v) => !v)}

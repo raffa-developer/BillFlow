@@ -2,6 +2,8 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { NavLink, useLocation } from 'react-router-dom';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
+import { languages } from '@/i18n';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { Rail } from './Rail';
 import { Flyout } from './Flyout';
 import { Topbar } from './Topbar';
@@ -9,7 +11,8 @@ import { CommandPalette } from './CommandPalette';
 import { NAV_SECTIONS, activeSectionId } from './nav';
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const { currency, changeCurrency, converting } = useCurrency();
   const { pathname } = useLocation();
   const [peek, setPeek] = useState<string | null>(() => activeSectionId(pathname));
   const [pinned, setPinned] = useState<string | null>(null);
@@ -28,7 +31,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
-    if (!pinned) return;
+    if (!pinned && !peek) return;
     const onClickOutside = (e: MouseEvent) => {
       if (navRef.current && !navRef.current.contains(e.target as Node)) {
         setPinned(null);
@@ -37,7 +40,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     };
     document.addEventListener('click', onClickOutside);
     return () => document.removeEventListener('click', onClickOutside);
-  }, [pinned]);
+  }, [pinned, peek]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -78,17 +81,18 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <div ref={navRef} className="hidden lg:flex">
+      <div ref={navRef} onMouseLeave={scheduleClose} className="hidden lg:flex">
         <Rail
           openSection={openSection}
           onPeek={(s) => { cancelClose(); setPeek(s); }}
+          onPin={(s) => { cancelClose(); setPinned(s); }}
           onTogglePin={(s) => setPinned((p) => (p === s ? null : s))}
         />
         <Flyout openSection={openSection} onMouseEnter={cancelClose} onMouseLeave={scheduleClose} />
       </div>
 
       <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
-        <SheetContent side="left" className="w-64 bg-sidebar-background p-0">
+        <SheetContent side="left" className="flex w-64 flex-col bg-sidebar-background p-0 text-sidebar-foreground">
           <SheetTitle className="sr-only">{t('nav.menu')}</SheetTitle>
           <SheetDescription className="sr-only">{t('nav.menu')}</SheetDescription>
           <nav className="flex flex-col gap-1 p-3">
@@ -105,6 +109,31 @@ export function AppShell({ children }: { children: ReactNode }) {
               </NavLink>
             ))}
           </nav>
+          <div className="mt-auto flex flex-col gap-2 p-3">
+            <select
+              data-testid="nav-mobile-language"
+              aria-label={t('nav.language')}
+              value={i18n.language}
+              onChange={(e) => i18n.changeLanguage(e.target.value)}
+              className="rounded-lg border border-sidebar-border bg-sidebar-accent px-3 py-2 text-sm text-sidebar-foreground"
+            >
+              {languages.map((l) => (
+                <option key={l.code} value={l.code}>{l.label}</option>
+              ))}
+            </select>
+            <select
+              data-testid="nav-mobile-currency"
+              aria-label={t('nav.currency')}
+              value={currency}
+              disabled={converting}
+              onChange={(e) => changeCurrency(e.target.value as typeof currency)}
+              className="rounded-lg border border-sidebar-border bg-sidebar-accent px-3 py-2 text-sm text-sidebar-foreground"
+            >
+              {(['EUR', 'BRL', 'USD', 'GBP'] as const).map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
         </SheetContent>
       </Sheet>
 

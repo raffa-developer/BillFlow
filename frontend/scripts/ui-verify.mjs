@@ -77,6 +77,8 @@ async function run() {
   await page.getByTestId('topbar-menu').click();
   await page.waitForTimeout(400);
   check('mobile nav sheet opens', await page.getByTestId('nav-mobile-invoices').isVisible());
+  check('mobile language select visible', await page.getByTestId('nav-mobile-language').isVisible());
+  check('mobile currency select visible', await page.getByTestId('nav-mobile-currency').isVisible());
   await page.setViewportSize({ width: 1280, height: 800 });
 
   await goto('/');
@@ -125,6 +127,22 @@ async function run() {
   const toastVisible = await page.locator('[data-sonner-toast]').count();
   check('sonner toast renders on settings save', toastVisible > 0, String(toastVisible));
 
+  // --- final review: peek dismissal, keyboard entry ---
+  await goto('/');
+  await page.getByTestId('nav-rail-finance').hover();
+  await page.waitForTimeout(300);
+  await page.mouse.move(900, 400);
+  await page.waitForTimeout(400);
+  check('hover-peek flyout dismisses on mouse leave', await page.getByTestId('nav-flyout').isHidden());
+
+  await goto('/');
+  await page.getByTestId('nav-rail-main').focus();
+  await page.keyboard.press('ArrowRight');
+  await page.waitForTimeout(200);
+  check('ArrowRight focuses first flyout item',
+    await page.getByTestId('nav-item-dashboard').evaluate((el) => el === document.activeElement));
+  await page.keyboard.press('Escape');
+
   if (WANT_AXE) {
     await goto('/');
     await page.addScriptTag({ url: 'https://unpkg.com/axe-core@4.10.2/axe.min.js' });
@@ -145,6 +163,16 @@ async function run() {
       darkSerious.map((v) => v.id).join(', '));
     await shot('dashboard-dark');
     await page.evaluate(() => document.documentElement.classList.remove('dark'));
+
+    await page.keyboard.press('Control+k');
+    await page.waitForTimeout(400);
+    const paletteResult = await page.evaluate(async () => window.axe.run(document, {
+      runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa'] },
+    }));
+    const paletteSerious = paletteResult.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
+    check('axe: no serious/critical violations in command palette', paletteSerious.length === 0,
+      paletteSerious.map((v) => v.id).join(', '));
+    await page.keyboard.press('Escape');
   }
 
   if (shots) console.log(`\nScreenshots: ${shots}`);

@@ -12,6 +12,8 @@ const es: Translations = {
     menu: 'Menú',
     language: 'Idioma',
     currency: 'Moneda',
+    commandPalette: 'Paleta de comandos',
+    account: 'Cuenta',
     collapse: 'Contraer',
     expandSidebar: 'Expandir menú',
     collapseSidebar: 'Contraer menú',
