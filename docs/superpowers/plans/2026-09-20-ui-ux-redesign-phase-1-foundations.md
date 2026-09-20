@@ -484,6 +484,7 @@ git commit -m "refactor(ui): back useToast with sonner"
 ### Task 5: App shell (rail, flyout, topbar, mobile sheet)
 
 **Files:**
+- Modify: `frontend/src/index.css`, `frontend/package.json` (animation utilities)
 - Create: `frontend/src/components/layout/nav.ts`
 - Create: `frontend/src/components/layout/Rail.tsx`
 - Create: `frontend/src/components/layout/Flyout.tsx`
@@ -500,6 +501,20 @@ git commit -m "refactor(ui): back useToast with sonner"
   - `NAV_SECTIONS: { id: string; labelKey: string; items: { id: string; href: string; labelKey: string; icon: LucideIcon }[] }[]`
   - Test ids used by tests and later phases: `nav-rail-<sectionId>`, `nav-item-<itemId>`, `topbar-command`, `topbar-account`, `account-logout`, `topbar-language`, `topbar-currency`, `topbar-menu` (mobile), `nav-mobile-<itemId>`.
   - Shell behavior: hover peeks, click pins, focus opens, Escape closes, outside click unpins.
+
+- [ ] **Step 0: Add animation utilities for generated overlays**
+
+The generated `dialog.tsx`, `sheet.tsx`, `dropdown-menu.tsx`, `popover.tsx`, and `tooltip.tsx` use `animate-in` / `fade-in-0` / `zoom-in-95` / `slide-in-from-*`, which no-op without a plugin.
+
+Run from `frontend/`: `npm i tw-animate-css`
+
+Add directly after `@import "tailwindcss";` in `frontend/src/index.css`:
+
+```css
+@import "tw-animate-css";
+```
+
+Commit as `build(ui): add animation utilities for shadcn overlays` before the shell work.
 
 - [ ] **Step 1: Create `nav.ts`**
 
