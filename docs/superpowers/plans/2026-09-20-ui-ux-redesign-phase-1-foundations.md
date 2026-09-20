@@ -269,6 +269,46 @@ Replace everything from `@theme {` through the end of the `.dark { ... }` block 
 
 Delete the `@import url('https://fonts.googleapis.com/css2?family=Inter...')` line wherever it appears in the file.
 
+Then replace the hardcoded base styles below the token blocks so they read the tokens too. Replace the `body`, `html.dark body`, `::selection`, `.dark ::selection`, and scrollbar rules with:
+
+```css
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+::selection {
+  background: color-mix(in srgb, var(--primary) 25%, transparent);
+  color: var(--primary);
+}
+
+.dark ::selection {
+  background: color-mix(in srgb, var(--primary) 35%, transparent);
+  color: var(--foreground);
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
+}
+```
+
+The `html.dark body` override and the `.dark ::-webkit-scrollbar-*` overrides become unnecessary because the tokens already switch with the `.dark` class. Keep the `.sidebar-enter` / `.sidebar-exit` animation classes for now; Task 5 deletes them with the old Sidebar.
+
 - [ ] **Step 2: Add font links to `index.html`**
 
 Inside `<head>`, before the title or module script:
