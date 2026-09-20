@@ -104,7 +104,15 @@ async function run() {
   await page.getByTestId('command-item-invoices').click();
   await page.waitForLoadState('networkidle');
   check('palette navigates', page.url().includes('/invoices'));
-  // --- badge checks (Task 7) ---
+  // --- status badge (Task 7) ---
+  await goto('/invoices');
+  const paidBadge = page.locator('[data-testid="status-badge-PAID"]').first();
+  if (await paidBadge.count()) {
+    const bg = await paidBadge.evaluate((el) => getComputedStyle(el).backgroundColor);
+    check('PAID badge uses lime', bg.includes('139, 195, 74'), bg);
+  } else {
+    check('PAID badge present on invoices list', false, 'no PAID row found');
+  }
   // Later tasks append their assertions above this line.
 
   // --- toast adapter (Task 4) ---
