@@ -560,7 +560,7 @@ return (
       <div data-testid="bulk-bar" className="fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-4 rounded-xl bg-sidebar-background px-4 py-2.5 text-xs font-semibold text-sidebar-foreground shadow-lg">
         <span>{t('invoices.selected', { count: selectedIds.size })}</span>
         <button className="text-accent" onClick={() => bulkMarkPaidMutation.mutate()}>{t('invoices.bulkMarkPaid')}</button>
-        <button className="text-destructive" onClick={() => setBulkDeleteOpen(true)}>{t('common.delete')}</button>
+        <button className="text-[#ef9a9a]" onClick={() => setBulkDeleteOpen(true)}>{t('common.delete')}</button>
       </div>
     )}
   </div>
