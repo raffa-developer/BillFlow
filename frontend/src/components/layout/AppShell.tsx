@@ -29,14 +29,14 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!pinned) return;
-    const onDown = (e: MouseEvent) => {
+    const onClickOutside = (e: MouseEvent) => {
       if (navRef.current && !navRef.current.contains(e.target as Node)) {
         setPinned(null);
         setPeek(null);
       }
     };
-    document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
+    document.addEventListener('click', onClickOutside);
+    return () => document.removeEventListener('click', onClickOutside);
   }, [pinned]);
 
   useEffect(() => {

@@ -40,10 +40,6 @@ const fail = (label, detail = '') => {
     await page.waitForTimeout(250);
     await page.getByTestId(`nav-item-${id}`).click();
     await page.waitForLoadState('networkidle');
-    // Unpin the flyout: a pinned flyout closes on the next content mousedown,
-    // reflowing the layout mid-click and swallowing clicks on narrow controls.
-    await page.keyboard.press('Escape');
-    await page.waitForTimeout(250);
     await page.waitForTimeout(600);
   };
 
