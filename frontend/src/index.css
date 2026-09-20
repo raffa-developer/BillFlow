@@ -119,16 +119,11 @@
 
 body {
   margin: 0;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #f8fafc;
-  color: #0f172a;
-}
-
-html.dark body {
-  background-color: #0b1220;
-  color: #e2e8f0;
+  background-color: var(--background);
+  color: var(--foreground);
 }
 
 .sidebar-enter {
@@ -148,13 +143,13 @@ html {
 }
 
 ::selection {
-  background: #bfdbfe;
-  color: #1e40af;
+  background: color-mix(in srgb, var(--primary) 25%, transparent);
+  color: var(--primary);
 }
 
 .dark ::selection {
-  background: #1e3a8a;
-  color: #e2e8f0;
+  background: color-mix(in srgb, var(--primary) 35%, transparent);
+  color: var(--foreground);
 }
 
 ::-webkit-scrollbar {
@@ -165,16 +160,9 @@ html {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: var(--border);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
-}
-
-.dark ::-webkit-scrollbar-thumb {
-  background: #334155;
-}
-.dark ::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: var(--muted-foreground);
 }
