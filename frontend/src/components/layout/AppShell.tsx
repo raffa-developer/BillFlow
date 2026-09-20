@@ -97,6 +97,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div
           data-testid="nav-flyout"
           aria-hidden={!openSection}
+          inert={!openSection}
           className={cn(
             'h-full shrink-0 overflow-hidden border-r border-sidebar-border bg-sidebar-accent',
             'transition-[width,opacity] duration-200 ease-out motion-reduce:transition-none',
