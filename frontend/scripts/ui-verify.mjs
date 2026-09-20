@@ -81,9 +81,18 @@ async function run() {
   await goto('/');
   await page.getByTestId('nav-rail-finance').click();
   await page.waitForTimeout(200);
+  check('pinned flyout visible before outside click', await page.getByTestId('nav-flyout').isVisible());
   await page.locator('main').click();
   await page.waitForTimeout(300);
   check('outside click unpins flyout', (await page.getByTestId('nav-flyout').count()) === 0);
+
+  await goto('/');
+  await page.getByTestId('nav-rail-finance').click();
+  await page.waitForTimeout(200);
+  check('flyout visible before escape', await page.getByTestId('nav-flyout').isVisible());
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(200);
+  check('escape closes flyout', (await page.getByTestId('nav-flyout').count()) === 0);
 
   // --- palette checks (Task 6) ---
   // --- badge checks (Task 7) ---

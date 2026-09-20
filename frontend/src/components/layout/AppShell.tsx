@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import { Rail } from './Rail';
 import { Flyout } from './Flyout';
 import { Topbar } from './Topbar';
@@ -39,18 +39,33 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setPinned(null);
+      if (e.key === 'Escape') {
+        setPinned(null);
+        setPeek(null);
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (closeTimer.current) window.clearTimeout(closeTimer.current);
+    };
+  }, []);
+
   const scheduleClose = () => {
     if (closeTimer.current) window.clearTimeout(closeTimer.current);
-    closeTimer.current = window.setTimeout(() => setPeek(null), 150);
+    closeTimer.current = window.setTimeout(() => {
+      closeTimer.current = null;
+      setPeek(null);
+    }, 150);
   };
   const cancelClose = () => {
-    if (closeTimer.current) window.clearTimeout(closeTimer.current);
+    if (closeTimer.current) {
+      window.clearTimeout(closeTimer.current);
+      closeTimer.current = null;
+    }
   };
 
   return (
@@ -66,6 +81,8 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
         <SheetContent side="left" className="w-64 bg-sidebar-background p-0">
+          <SheetTitle className="sr-only">{t('nav.menu')}</SheetTitle>
+          <SheetDescription className="sr-only">{t('nav.menu')}</SheetDescription>
           <nav className="flex flex-col gap-1 p-3">
             {NAV_SECTIONS.flatMap((s) => s.items).map((item) => (
               <NavLink

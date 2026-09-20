@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 import { ChevronsUpDown, LogOut, Menu, Moon, Search, Sun, User } from 'lucide-react';
@@ -20,15 +20,33 @@ export function Topbar({ onOpenCommand, onOpenMobileNav }: TopbarProps) {
   const { currency, changeCurrency, converting } = useCurrency();
   const { theme, toggleTheme } = useTheme();
   const [accountOpen, setAccountOpen] = useState(false);
+  const accountRef = useRef<HTMLDivElement>(null);
 
   const activeItem = NAV_SECTIONS.flatMap((s) => s.items).find((item) =>
     item.href === '/' ? pathname === '/' : pathname.startsWith(item.href)
   );
 
+  useEffect(() => {
+    if (!accountOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (accountRef.current && !accountRef.current.contains(e.target as Node)) setAccountOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setAccountOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [accountOpen]);
+
   return (
     <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border bg-card px-3 lg:px-4">
       <button
         data-testid="topbar-menu"
+        aria-label={t('nav.menu')}
         onClick={onOpenMobileNav}
         className="rounded-lg p-2 text-muted-foreground hover:bg-muted lg:hidden"
       >
@@ -75,9 +93,11 @@ export function Topbar({ onOpenCommand, onOpenMobileNav }: TopbarProps) {
           <option key={c} value={c}>{c}</option>
         ))}
       </select>
-      <div className="relative">
+      <div ref={accountRef} className="relative">
         <button
           data-testid="topbar-account"
+          aria-haspopup="menu"
+          aria-expanded={accountOpen}
           onClick={() => setAccountOpen((v) => !v)}
           className="flex items-center gap-2 rounded-lg p-1.5 hover:bg-muted"
         >
