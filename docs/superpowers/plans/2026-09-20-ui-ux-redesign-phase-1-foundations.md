@@ -367,6 +367,14 @@ Run from `frontend/`:
 npx shadcn@latest add button input textarea select checkbox radio-group switch label form dialog alert-dialog sheet dropdown-menu popover tooltip tabs table badge avatar separator skeleton progress calendar command sonner scroll-area breadcrumb --yes
 ```
 
+**Deferred to Phase 2:** six components (`button`, `input`, `select`, `badge`, `calendar`, `alert-dialog`) collide with the legacy PascalCase files (`Button.tsx`, `Input.tsx`, `Select.tsx`, `Badge.tsx`) on case-insensitive NTFS, which breaks tsc (TS1149). Phase 1 does not need them (Tasks 4-7 use `sonner`, `sheet`, and `command`, all generated). Before Phase 2 page migration, delete or rename the legacy PascalCase primitives, then re-run:
+
+```bash
+npx shadcn@latest add button input select badge calendar alert-dialog --yes
+```
+
+After the CLI runs, delete `next-themes` (`npm uninstall next-themes`) and replace `frontend/src/components/ui/sonner.tsx` so it uses the app's `useTheme` from `@/contexts/ThemeContext` (which toggles the `dark` class) instead of `next-themes`.
+
 - [ ] **Step 3: Protect the tokens**
 
 Run: `git diff frontend/src/index.css`
