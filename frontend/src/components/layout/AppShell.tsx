@@ -15,6 +15,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [prevPathname, setPrevPathname] = useState(pathname);
   const closeTimer = useRef<number | null>(null);
+  const navRef = useRef<HTMLDivElement>(null);
 
   const openSection = pinned ?? peek;
 
@@ -23,6 +24,18 @@ export function AppShell({ children }: { children: ReactNode }) {
     setMobileNavOpen(false);
     setPeek(activeSectionId(pathname));
   }
+
+  useEffect(() => {
+    if (!pinned) return;
+    const onDown = (e: MouseEvent) => {
+      if (navRef.current && !navRef.current.contains(e.target as Node)) {
+        setPinned(null);
+        setPeek(null);
+      }
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [pinned]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -42,7 +55,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <div className="hidden lg:flex">
+      <div ref={navRef} className="hidden lg:flex">
         <Rail
           openSection={openSection}
           onPeek={(s) => { cancelClose(); setPeek(s); }}

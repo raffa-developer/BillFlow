@@ -78,6 +78,13 @@ async function run() {
   check('mobile nav sheet opens', await page.getByTestId('nav-mobile-invoices').isVisible());
   await page.setViewportSize({ width: 1280, height: 800 });
 
+  await goto('/');
+  await page.getByTestId('nav-rail-finance').click();
+  await page.waitForTimeout(200);
+  await page.locator('main').click();
+  await page.waitForTimeout(300);
+  check('outside click unpins flyout', (await page.getByTestId('nav-flyout').count()) === 0);
+
   // --- palette checks (Task 6) ---
   // --- badge checks (Task 7) ---
   // Later tasks append their assertions above this line.
