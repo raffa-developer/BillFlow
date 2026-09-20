@@ -883,6 +883,32 @@ export function AppShell({ children }: { children: ReactNode }) {
 
 Task 6 replaces the `onOpenCommand` stub with palette state, the `⌘K` handler, and the `<CommandPalette>` render.
 
+- [ ] **Step 5b: Unpin the flyout on outside click**
+
+Wrap the desktop rail and flyout in a ref'd container and add:
+
+```tsx
+const navRef = useRef<HTMLDivElement>(null);
+
+useEffect(() => {
+  if (!pinned) return;
+  const onDown = (e: MouseEvent) => {
+    if (navRef.current && !navRef.current.contains(e.target as Node)) setPinned(null);
+  };
+  document.addEventListener('mousedown', onDown);
+  return () => document.removeEventListener('mousedown', onDown);
+}, [pinned]);
+```
+
+```tsx
+<div ref={navRef} className="hidden lg:flex">
+  <Rail ... />
+  <Flyout ... />
+</div>
+```
+
+If the repo's `react-hooks/set-state-in-effect` lint flags the two pathname-sync effects above, convert them to the render-time adjustment pattern already used in `CurrencyContext.tsx` (compare a `prevPathname` state during render, then set state), preserving behavior.
+
 - [ ] **Step 6: Wire `Layout.tsx`, delete `Sidebar.tsx`**
 
 `Layout.tsx` keeps the auth loading spinner and `Navigate to="/login"`, then renders `<AppShell>{children}</AppShell>`. Delete `Sidebar.tsx`. Remove its imports everywhere (`npx rg "Sidebar" frontend/src`).
