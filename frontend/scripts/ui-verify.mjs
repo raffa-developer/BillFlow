@@ -86,7 +86,7 @@ async function run() {
   await page.waitForTimeout(250);
   check('flyout visible after pin', await page.getByTestId('nav-flyout').isVisible());
   await page.locator('main').click();
-  await page.waitForTimeout(350);
+  await page.getByTestId('nav-flyout').waitFor({ state: 'hidden', timeout: 3000 }).catch(() => {});
   check('outside click unpins flyout', !(await page.getByTestId('nav-flyout').isVisible()));
   const closedWidth = await page.getByTestId('nav-flyout').evaluate((el) => el.getBoundingClientRect().width);
   check('closed flyout has zero width', closedWidth === 0, String(closedWidth));
@@ -96,7 +96,7 @@ async function run() {
   await page.waitForTimeout(250);
   check('flyout visible before escape', await page.getByTestId('nav-flyout').isVisible());
   await page.keyboard.press('Escape');
-  await page.waitForTimeout(350);
+  await page.getByTestId('nav-flyout').waitFor({ state: 'hidden', timeout: 3000 }).catch(() => {});
   check('escape dismisses flyout', !(await page.getByTestId('nav-flyout').isVisible()));
 
   // --- command palette (Task 6) ---
