@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { NavLink, useLocation } from 'react-router-dom';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
+import { cn } from '@/lib/utils';
 import { languages } from '@/i18n';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { Rail } from './Rail';
@@ -18,11 +19,16 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [pinned, setPinned] = useState<string | null>(null);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
+  const [lastSection, setLastSection] = useState<string>(() => activeSectionId(pathname));
   const [prevPathname, setPrevPathname] = useState(pathname);
   const closeTimer = useRef<number | null>(null);
   const navRef = useRef<HTMLDivElement>(null);
 
   const openSection = pinned ?? peek;
+
+  if (openSection && openSection !== lastSection) {
+    setLastSection(openSection);
+  }
 
   if (pathname !== prevPathname) {
     setPrevPathname(pathname);
@@ -88,7 +94,17 @@ export function AppShell({ children }: { children: ReactNode }) {
           onPin={(s) => { cancelClose(); setPinned(s); }}
           onTogglePin={(s) => setPinned((p) => (p === s ? null : s))}
         />
-        <Flyout openSection={openSection} onMouseEnter={cancelClose} onMouseLeave={scheduleClose} />
+        <div
+          data-testid="nav-flyout"
+          aria-hidden={!openSection}
+          className={cn(
+            'h-full shrink-0 overflow-hidden border-r border-sidebar-border bg-sidebar-accent',
+            'transition-[width,opacity] duration-200 ease-out motion-reduce:transition-none',
+            openSection ? 'w-56 opacity-100' : 'pointer-events-none w-0 border-r-0 opacity-0'
+          )}
+        >
+          <Flyout section={NAV_SECTIONS.find((s) => s.id === lastSection) ?? null} />
+        </div>
       </div>
 
       <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>

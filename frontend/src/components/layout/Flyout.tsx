@@ -1,26 +1,18 @@
 import { useTranslation } from 'react-i18next';
 import { NavLink } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { NAV_SECTIONS } from './nav';
+import type { NavSection } from './nav';
 
 interface FlyoutProps {
-  openSection: string | null;
-  onMouseEnter: () => void;
-  onMouseLeave: () => void;
+  section: NavSection | null;
 }
 
-export function Flyout({ openSection, onMouseEnter, onMouseLeave }: FlyoutProps) {
+export function Flyout({ section }: FlyoutProps) {
   const { t } = useTranslation();
-  const section = NAV_SECTIONS.find((s) => s.id === openSection);
   if (!section) return null;
 
   return (
-    <div
-      data-testid="nav-flyout"
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
-      className="flex h-full w-56 shrink-0 flex-col border-r border-sidebar-border bg-sidebar-accent px-2 py-3"
-    >
+    <div className="w-56 px-2 py-3">
       <p className="px-2 pb-2 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/60">
         {t(section.labelKey)}
       </p>

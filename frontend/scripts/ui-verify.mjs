@@ -83,19 +83,21 @@ async function run() {
 
   await goto('/');
   await page.getByTestId('nav-rail-finance').click();
-  await page.waitForTimeout(200);
-  check('pinned flyout visible before outside click', await page.getByTestId('nav-flyout').isVisible());
+  await page.waitForTimeout(250);
+  check('flyout visible after pin', await page.getByTestId('nav-flyout').isVisible());
   await page.locator('main').click();
-  await page.waitForTimeout(300);
-  check('outside click unpins flyout', (await page.getByTestId('nav-flyout').count()) === 0);
+  await page.waitForTimeout(350);
+  check('outside click unpins flyout', !(await page.getByTestId('nav-flyout').isVisible()));
+  const closedWidth = await page.getByTestId('nav-flyout').evaluate((el) => el.getBoundingClientRect().width);
+  check('closed flyout has zero width', closedWidth === 0, String(closedWidth));
 
   await goto('/');
   await page.getByTestId('nav-rail-finance').click();
-  await page.waitForTimeout(200);
+  await page.waitForTimeout(250);
   check('flyout visible before escape', await page.getByTestId('nav-flyout').isVisible());
   await page.keyboard.press('Escape');
-  await page.waitForTimeout(200);
-  check('escape closes flyout', (await page.getByTestId('nav-flyout').count()) === 0);
+  await page.waitForTimeout(350);
+  check('escape dismisses flyout', !(await page.getByTestId('nav-flyout').isVisible()));
 
   // --- command palette (Task 6) ---
   await goto('/');
@@ -132,7 +134,7 @@ async function run() {
   await page.getByTestId('nav-rail-finance').hover();
   await page.waitForTimeout(300);
   await page.mouse.move(900, 400);
-  await page.waitForTimeout(400);
+  await page.waitForTimeout(700);
   check('hover-peek flyout dismisses on mouse leave', await page.getByTestId('nav-flyout').isHidden());
 
   await goto('/');
