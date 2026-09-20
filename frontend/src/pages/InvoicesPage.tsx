@@ -379,18 +379,9 @@ export default function InvoicesPage() {
                       <div
                         key={inv.id}
                         data-testid={`invoice-row-${inv.id}`}
-                        role="link"
-                        tabIndex={0}
                         onClick={() => navigate(`/invoices/${inv.id}`)}
-                        onKeyDown={(e) => {
-                          if (e.target !== e.currentTarget) return;
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            navigate(`/invoices/${inv.id}`);
-                          }
-                        }}
                         className={cn(
-                          'group flex cursor-pointer items-center gap-3 border-b border-border px-5 py-3 transition-colors last:border-b-0 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
+                          'group flex cursor-pointer items-center gap-3 border-b border-border px-5 py-3 transition-colors last:border-b-0 hover:bg-muted/40',
                           selected && 'bg-primary/5'
                         )}
                       >
@@ -403,7 +394,13 @@ export default function InvoicesPage() {
                           onChange={row.getToggleSelectedHandler()}
                           className="h-3.5 w-3.5 rounded border-border accent-primary"
                         />
-                        <span className="w-24 font-mono text-xs font-bold text-foreground">{inv.number}</span>
+                        <Link
+                          to={`/invoices/${inv.id}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-24 rounded font-mono text-xs font-bold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
+                        >
+                          {inv.number}
+                        </Link>
                         <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">{inv.client.name}</span>
                         <StatusBadge status={inv.status} className="shrink-0" />
                         <span className="w-28 shrink-0 text-right font-mono text-sm font-bold tabular-nums text-foreground">
@@ -434,18 +431,9 @@ export default function InvoicesPage() {
                   <div
                     key={inv.id}
                     data-testid={`invoice-card-${inv.id}`}
-                    role="link"
-                    tabIndex={0}
                     onClick={() => navigate(`/invoices/${inv.id}`)}
-                    onKeyDown={(e) => {
-                      if (e.target !== e.currentTarget) return;
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        navigate(`/invoices/${inv.id}`);
-                      }
-                    }}
                     className={cn(
-                      'flex cursor-pointer items-start gap-3 border-b border-border px-4 py-3.5 last:border-b-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
+                      'flex cursor-pointer items-start gap-3 border-b border-border px-4 py-3.5 last:border-b-0',
                       selected && 'bg-primary/5'
                     )}
                   >
@@ -459,7 +447,13 @@ export default function InvoicesPage() {
                     />
                     <div className="min-w-0 flex-1">
                       <div className="mb-1 flex items-center gap-2">
-                        <span className="font-mono text-xs font-medium text-muted-foreground">{inv.number}</span>
+                        <Link
+                          to={`/invoices/${inv.id}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="rounded font-mono text-xs font-medium text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
+                        >
+                          {inv.number}
+                        </Link>
                         <StatusBadge status={inv.status} />
                       </div>
                       <p className="truncate font-medium text-foreground">{inv.client.name}</p>

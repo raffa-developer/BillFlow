@@ -170,7 +170,7 @@ async function run() {
   await page.waitForTimeout(200);
   check('select-all selects the page', (await page.locator('[data-testid^="invoice-select-"]:checked').count()) > 1);
   await page.keyboard.press('Escape');
-  await firstLedgerRow.focus();
+  await firstLedgerRow.getByRole('link').first().focus();
   await page.keyboard.press('Enter');
   await page.waitForLoadState('networkidle');
   check('keyboard opens invoice detail', /\/invoices\/\d+/.test(page.url()));
