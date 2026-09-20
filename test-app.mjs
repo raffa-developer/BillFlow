@@ -17,17 +17,33 @@ const fail = (label, detail = '') => {
 
 (async () => {
   const browser = await chromium.launch({ headless: false, slowMo: 60 });
-  const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, locale: 'en-US' });
   const page = await ctx.newPage();
   const consoleErrors = [];
   page.on('console', m => { if (m.type() === 'error') consoleErrors.push(m.text()); });
 
-  // helper: click sidebar nav link (dismiss any open modal first)
+  // helper: navigate via the rail + flyout shell (dismiss any open overlay first)
+  const NAV_ID = {
+    '/': 'dashboard',
+    '/clients': 'clients',
+    '/products': 'products',
+    '/invoices': 'invoices',
+    '/reports': 'reports',
+    '/settings': 'settings',
+  };
+
   const goTo = async (href) => {
     await page.keyboard.press('Escape');
     await page.waitForTimeout(200);
-    await page.locator(`aside a[href="${href}"]`).click();
+    const id = NAV_ID[href];
+    await page.getByTestId(`nav-rail-${id === 'settings' ? 'system' : id === 'products' || id === 'reports' ? 'finance' : 'main'}`).click();
+    await page.waitForTimeout(250);
+    await page.getByTestId(`nav-item-${id}`).click();
     await page.waitForLoadState('networkidle');
+    // Unpin the flyout: a pinned flyout closes on the next content mousedown,
+    // reflowing the layout mid-click and swallowing clicks on narrow controls.
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(250);
     await page.waitForTimeout(600);
   };
 
@@ -77,15 +93,15 @@ const fail = (label, detail = '') => {
   }
 
   try {
-    await page.locator('aside').waitFor({ timeout: 6000 });
-    pass('App sidebar visible after auth');
-  } catch { fail('Sidebar visible', page.url()); }
+    await page.getByTestId('topbar-account').waitFor({ timeout: 6000 });
+    pass('App shell topbar visible after auth');
+  } catch { fail('Topbar visible', page.url()); }
 
-  // Logout via account dropdown (sidebar footer)
+  // Logout via account dropdown (topbar)
   try {
-    await page.locator(`aside button:has-text("${EMAIL}")`).click();
+    await page.getByTestId('topbar-account').click();
     await page.waitForTimeout(400);
-    await page.locator('button:has-text("Logout")').click();
+    await page.getByTestId('account-logout').click();
     await page.waitForURL('**/login', { timeout: 5000 });
     pass('Logout works');
   } catch (e) { fail('Logout', e.message); }
@@ -97,7 +113,7 @@ const fail = (label, detail = '') => {
     await page.locator('button[type="submit"]').click();
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1200);
-    await page.locator('aside').waitFor({ timeout: 5000 });
+    await page.getByTestId('topbar-account').waitFor({ timeout: 5000 });
     pass('Re-login works');
   } catch (e) { fail('Re-login', e.message); }
 
@@ -317,12 +333,12 @@ const fail = (label, detail = '') => {
   } catch (e) { fail('Search', e.message); }
 
   try {
-    // Mobile classes only render when rows exist — reload after invoice was created
+    // Responsive shell + table classes only render with content — check after invoice creation
     const html = await page.content();
-    const hasMobile = html.includes('sm:hidden') || html.includes('hidden sm:') ||
-                      html.includes('sm:block') || html.includes('hidden overflow-x-auto');
-    if (hasMobile) pass('Mobile card CSS (sm: breakpoints) present');
-    else fail('Mobile CSS', 'no sm: responsive classes found in HTML (may be empty list)');
+    const hasMobile = html.includes('lg:hidden') || html.includes('hidden lg:flex') ||
+                      html.includes('overflow-x-auto');
+    if (hasMobile) pass('Mobile card CSS (lg: breakpoints) present');
+    else fail('Mobile CSS', 'no lg:/overflow responsive classes found in HTML');
   } catch (e) { fail('Mobile CSS', e.message); }
 
   // ── 7. INVOICE DETAIL — Duplicate ─────────────────────────────────────────
