@@ -65,6 +65,13 @@ async function run() {
   // --- badge checks (Task 7) ---
   // Later tasks append their assertions above this line.
 
+  // --- toast adapter (Task 4) ---
+  await goto('/settings');
+  await page.getByTestId('settings-company-submit').click();
+  await page.waitForTimeout(900);
+  const toastVisible = await page.locator('[data-sonner-toast]').count();
+  check('sonner toast renders on settings save', toastVisible > 0, String(toastVisible));
+
   if (WANT_AXE) {
     await goto('/');
     await page.addScriptTag({ url: 'https://unpkg.com/axe-core@4.10.2/axe.min.js' });

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Building2, UserCog } from 'lucide-react';
@@ -7,6 +7,7 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { useToast } from '../contexts/ToastContext';
+import { useAuth } from '../contexts/AuthContext';
 import { cn } from '../lib/utils';
 
 type Tab = 'company' | 'account';
@@ -79,8 +80,12 @@ function CompanyTab() {
     invoicePrefix: 'INV',
   });
 
+  const hydratedUserId = useRef<number | null>(null);
+
+  // Hydrate once per user id — a background refetch must not clobber in-progress edits.
   useEffect(() => {
-    if (user) {
+    if (user && hydratedUserId.current !== user.id) {
+      hydratedUserId.current = user.id;
       setForm({
         companyName: user.companyName ?? '',
         companyAddress: user.companyAddress ?? '',
@@ -164,7 +169,7 @@ function CompanyTab() {
         </div>
 
         <div className="flex justify-end pt-2">
-          <Button type="submit" loading={save.isPending}>{t('common.save')}</Button>
+          <Button type="submit" loading={save.isPending} data-testid="settings-company-submit">{t('common.save')}</Button>
         </div>
       </form>
     </Card>
@@ -174,6 +179,7 @@ function CompanyTab() {
 function AccountTab() {
   const { t } = useTranslation();
   const qc = useQueryClient();
+  const { refresh } = useAuth();
   const { toast } = useToast();
   const { data } = useQuery({ queryKey: ['me'], queryFn: () => meApi.get() });
   const user = data?.data.user;
@@ -181,16 +187,22 @@ function AccountTab() {
   const [emailForm, setEmailForm] = useState({ email: '', currentPassword: '' });
   const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', confirm: '' });
 
+  const hydratedEmailUserId = useRef<number | null>(null);
+
+  // Hydrate once per user id so background refetches don't clobber edits.
   useEffect(() => {
-    if (user) setEmailForm((f) => ({ ...f, email: user.email }));
+    if (user && hydratedEmailUserId.current !== user.id) {
+      hydratedEmailUserId.current = user.id;
+      setEmailForm((f) => ({ ...f, email: user.email }));
+    }
   }, [user]);
 
   const updateEmail = useMutation({
     mutationFn: () => meApi.updateEmail(emailForm.email, emailForm.currentPassword),
-    onSuccess: ({ data }) => {
+    onSuccess: async ({ data }) => {
       localStorage.setItem('token', data.token);
+      await refresh();
       qc.invalidateQueries({ queryKey: ['me'] });
-      qc.invalidateQueries({ queryKey: ['auth-me'] });
       setEmailForm({ email: data.user.email, currentPassword: '' });
       toast.success(t('settings.emailUpdated'));
     },
