@@ -76,6 +76,7 @@ const es: Translations = {
     byStatus: 'Por estado',
     recentInvoices: 'Facturas recientes',
     viewAll: 'Ver todas',
+    paidRate: 'Tasa de pago',
     noPayments: 'Aún no hay pagos registrados.',
     noInvoices: 'Aún no hay facturas.',
     createFirst: 'Crear primera factura',

@@ -74,6 +74,7 @@ const en = {
     byStatus: 'By status',
     recentInvoices: 'Recent invoices',
     viewAll: 'View all',
+    paidRate: 'Paid rate',
     noPayments: 'No payments recorded yet.',
     noInvoices: 'No invoices yet.',
     createFirst: 'Create first invoice',

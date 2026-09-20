@@ -119,6 +119,16 @@ async function run() {
   } else {
     check('PAID badge present on invoices list', false, 'no PAID row found');
   }
+  // --- dashboard bento (Task 3) ---
+  await goto('/');
+  for (const id of ['dashboard-hero-revenue', 'dashboard-stat-outstanding', 'dashboard-stat-paid', 'dashboard-status-bars', 'dashboard-recent']) {
+    check(`dashboard bento: ${id}`, await page.getByTestId(id).isVisible());
+  }
+  await page.getByTestId('dashboard-recent').locator('a[href^="/invoices/"]').first().click();
+  await page.waitForLoadState('networkidle');
+  check('recent invoice link navigates', page.url().includes('/invoices/'));
+  await goto('/');
+
   // Later tasks append their assertions above this line.
 
   // --- toast adapter (Task 4) ---

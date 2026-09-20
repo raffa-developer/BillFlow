@@ -76,6 +76,7 @@ const it: Translations = {
     byStatus: 'Per stato',
     recentInvoices: 'Fatture recenti',
     viewAll: 'Vedi tutte',
+    paidRate: 'Tasso di pagamento',
     noPayments: 'Nessun pagamento registrato.',
     noInvoices: 'Nessuna fattura per ora.',
     createFirst: 'Crea la prima fattura',

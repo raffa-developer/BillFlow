@@ -76,6 +76,7 @@ const de: Translations = {
     byStatus: 'Nach Status',
     recentInvoices: 'Aktuelle Rechnungen',
     viewAll: 'Alle anzeigen',
+    paidRate: 'Zahlungsquote',
     noPayments: 'Noch keine Zahlungen erfasst.',
     noInvoices: 'Noch keine Rechnungen.',
     createFirst: 'Erste Rechnung erstellen',
