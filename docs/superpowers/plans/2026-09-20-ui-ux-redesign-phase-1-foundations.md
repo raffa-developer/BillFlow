@@ -30,7 +30,7 @@
 
 **Interfaces:**
 - Consumes: nothing.
-- Produces: `node scripts/ui-verify.mjs [--screens] [--axe]` exits non-zero when a check fails. Later tasks add checks to the `CHECKS` array. Env overrides: `APP_URL` (default `http://localhost:5173`), `API_URL` (default `http://localhost:4000/api`), `VERIFY_EMAIL` / `VERIFY_PASSWORD` (default demo account).
+- Produces: `node scripts/ui-verify.mjs [--screens] [--axe]` exits non-zero when a check fails. Later tasks append their assertions inline before the axe block using the existing `check()` helper (there is no `CHECKS` array). Env overrides: `APP_URL` (default `http://localhost:5173`), `API_URL` (default `http://localhost:4000/api`), `VERIFY_EMAIL` / `VERIFY_PASSWORD` (default demo account).
 
 - [ ] **Step 1: Write the harness**
 
@@ -150,7 +150,7 @@ git commit -m "test(ui): add Playwright verification harness"
 
 - [ ] **Step 1: Replace the token block in `index.css`**
 
-Replace everything from `@theme {` through the end of the `.dark { ... }` block with:
+Replace everything from `@theme {` through the end of the `.dark { ... }` block with the following. Use the shadcn v4 pattern: raw variables live in `:root`/`.dark` so they always exist at runtime, and `@theme inline` maps them to Tailwind utilities. Tailwind v4 prunes unused `@theme` variables, which would leave the harness token checks red for the wrong reason.
 
 ```css
 @theme {
@@ -167,7 +167,45 @@ Replace everything from `@theme {` through the end of the `.dark { ... }` block 
   --color-primary-700: #00695c;
   --color-primary-800: #004d40;
   --color-primary-900: #00332c;
+}
 
+/* Map runtime variables to Tailwind color utilities (shadcn v4 pattern).
+   Raw variables live in :root/.dark so they exist at runtime. */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar-background: var(--sidebar-background);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
   --background: #eeeeee;
   --foreground: #424242;
   --card: #ffffff;
@@ -196,9 +234,6 @@ Replace everything from `@theme {` through the end of the `.dark { ... }` block 
   --sidebar-accent-foreground: #e8efed;
   --sidebar-border: #232927;
   --sidebar-ring: #8bc34a;
-}
-
-:root {
   --toast-bg: #ffffff;
   --toast-text: #424242;
   --toast-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
