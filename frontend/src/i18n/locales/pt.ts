@@ -11,6 +11,7 @@ const pt: Translations = {
     logout: 'Sair',
     menu: 'Menu',
     language: 'Idioma',
+    currency: 'Moeda',
     collapse: 'Recolher',
     expandSidebar: 'Expandir menu',
     collapseSidebar: 'Recolher menu',

@@ -11,6 +11,7 @@ const fr: Translations = {
     logout: 'Déconnexion',
     menu: 'Menu',
     language: 'Langue',
+    currency: 'Devise',
     collapse: 'Réduire',
     expandSidebar: 'Développer la barre latérale',
     collapseSidebar: 'Réduire la barre latérale',

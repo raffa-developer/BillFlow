@@ -159,7 +159,7 @@ export default function DashboardPage() {
       {/* Page header */}
       <div>
         <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-50">{t('dashboard.title')}</h1>
-        <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{t('dashboard.subtitle')}</p>
+        <p className="mt-0.5 text-sm text-muted-foreground">{t('dashboard.subtitle')}</p>
       </div>
 
       {/* Stat cards */}
@@ -186,7 +186,7 @@ export default function DashboardPage() {
                     'rounded-md px-3 py-1 text-xs font-medium transition-all',
                     period === p.key
                       ? 'bg-white text-blue-600 shadow-sm dark:bg-slate-700 dark:text-blue-300 dark:shadow-none'
-                      : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                      : 'text-muted-foreground hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
                   )}
                 >
                   {p.label}
@@ -268,7 +268,7 @@ export default function DashboardPage() {
                 <div key={status}>
                   <div className="mb-1.5 flex items-center justify-between text-xs">
                     <span className="font-medium text-slate-700 dark:text-slate-300">{statusLabels[status]}</span>
-                    <span className="text-slate-400 dark:text-slate-500">{count} · {formatAmount(total)}</span>
+                    <span className="text-muted-foreground">{count} · {formatAmount(total)}</span>
                   </div>
                   <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
                     <div className={cn('h-1.5 rounded-full transition-all duration-500', bar[status])} style={{ width: `${pct}%` }} />
@@ -313,12 +313,12 @@ export default function DashboardPage() {
                   inv.status === 'OVERDUE' && 'border-l-[3px] border-l-red-500 pl-[calc(1.25rem-3px)]'
                 )}
               >
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500 text-xs font-mono font-bold dark:bg-slate-800 dark:text-slate-400">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted text-foreground text-xs font-mono font-bold dark:bg-slate-800 dark:text-slate-400">
                   #{inv.id}
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-slate-800 dark:text-slate-100">{inv.client.name}</p>
-                  <p className="text-xs text-slate-400 dark:text-slate-500">{formatDate(inv.dateIssued)}</p>
+                  <p className="text-xs text-muted-foreground">{formatDate(inv.dateIssued)}</p>
                 </div>
                 <StatusBadge status={inv.status} />
                 <span className="shrink-0 text-sm font-semibold tabular-nums text-slate-700 dark:text-slate-200">

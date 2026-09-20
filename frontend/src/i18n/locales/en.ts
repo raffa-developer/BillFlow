@@ -9,6 +9,7 @@ const en = {
     logout: 'Logout',
     menu: 'Menu',
     language: 'Language',
+    currency: 'Currency',
     collapse: 'Collapse',
     expandSidebar: 'Expand sidebar',
     collapseSidebar: 'Collapse sidebar',

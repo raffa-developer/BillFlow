@@ -74,6 +74,7 @@ export function Topbar({ onOpenCommand, onOpenMobileNav }: TopbarProps) {
       </button>
       <select
         data-testid="topbar-language"
+        aria-label={t('nav.language')}
         value={i18n.language}
         onChange={(e) => i18n.changeLanguage(e.target.value)}
         className="hidden rounded-lg border border-border bg-card px-2 py-1.5 text-xs text-muted-foreground md:block"
@@ -84,6 +85,7 @@ export function Topbar({ onOpenCommand, onOpenMobileNav }: TopbarProps) {
       </select>
       <select
         data-testid="topbar-currency"
+        aria-label={t('nav.currency')}
         value={currency}
         disabled={converting}
         onChange={(e) => changeCurrency(e.target.value as typeof currency)}

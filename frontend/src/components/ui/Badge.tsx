@@ -17,7 +17,7 @@ const styles: Record<InvoiceStatus, { badge: string; dot: string }> = {
     dot: 'bg-[#FFB300]',
   },
   OVERDUE: {
-    badge: 'bg-destructive/15 text-destructive ring-1 ring-destructive/30 dark:bg-destructive/20',
+    badge: 'bg-destructive/15 text-[#b3261e] ring-1 ring-destructive/30 dark:bg-destructive/20 dark:text-[#ef9a9a]',
     dot: 'bg-destructive',
   },
 };

@@ -19,9 +19,9 @@ export function Flyout({ openSection, onMouseEnter, onMouseLeave }: FlyoutProps)
       data-testid="nav-flyout"
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
-      className="flex h-full w-56 shrink-0 flex-col border-r border-sidebar-border bg-sidebar-accent/60 px-2 py-3"
+      className="flex h-full w-56 shrink-0 flex-col border-r border-sidebar-border bg-sidebar-accent px-2 py-3"
     >
-      <p className="px-2 pb-2 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/40">
+      <p className="px-2 pb-2 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/60">
         {t(section.labelKey)}
       </p>
       <div className="space-y-0.5">

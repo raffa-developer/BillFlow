@@ -11,6 +11,7 @@ const es: Translations = {
     logout: 'Cerrar sesión',
     menu: 'Menú',
     language: 'Idioma',
+    currency: 'Moneda',
     collapse: 'Contraer',
     expandSidebar: 'Expandir menú',
     collapseSidebar: 'Contraer menú',

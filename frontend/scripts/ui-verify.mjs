@@ -63,6 +63,7 @@ async function run() {
   // --- shell checks (Task 5) ---
   await goto('/');
   check('rail visible', await page.getByTestId('nav-rail-main').isVisible());
+  await shot('dashboard');
   await page.getByTestId('nav-rail-finance').hover();
   await page.waitForTimeout(300);
   check('hover opens flyout', await page.getByTestId('nav-flyout').isVisible());
@@ -106,6 +107,7 @@ async function run() {
   check('palette navigates', page.url().includes('/invoices'));
   // --- status badge (Task 7) ---
   await goto('/invoices');
+  await shot('invoices');
   const paidBadge = page.locator('[data-testid="status-badge-PAID"]').first();
   if (await paidBadge.count()) {
     const bg = await paidBadge.evaluate((el) => getComputedStyle(el).backgroundColor);
@@ -117,6 +119,7 @@ async function run() {
 
   // --- toast adapter (Task 4) ---
   await goto('/settings');
+  await shot('settings');
   await page.getByTestId('settings-company-submit').click();
   await page.waitForTimeout(900);
   const toastVisible = await page.locator('[data-sonner-toast]').count();
@@ -131,6 +134,17 @@ async function run() {
     const serious = result.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
     check('axe: no serious/critical violations on dashboard', serious.length === 0,
       serious.map((v) => v.id).join(', '));
+
+    await page.evaluate(() => document.documentElement.classList.add('dark'));
+    await page.waitForTimeout(300);
+    const darkResult = await page.evaluate(async () => window.axe.run(document, {
+      runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa'] },
+    }));
+    const darkSerious = darkResult.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
+    check('axe dark: no serious/critical violations on dashboard', darkSerious.length === 0,
+      darkSerious.map((v) => v.id).join(', '));
+    await shot('dashboard-dark');
+    await page.evaluate(() => document.documentElement.classList.remove('dark'));
   }
 
   if (shots) console.log(`\nScreenshots: ${shots}`);
