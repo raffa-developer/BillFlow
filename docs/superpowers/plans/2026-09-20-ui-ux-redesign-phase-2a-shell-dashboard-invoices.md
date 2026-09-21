@@ -425,6 +425,7 @@ const columns = useMemo<ColumnDef<Invoice>[]>(() => [
   { id: 'select', header: () => null, cell: () => null, enableSorting: false },
   { id: 'number', accessorFn: (i) => i.number, header: t('invoices.colNumber') },
   { id: 'client', accessorFn: (i) => i.client.name, header: t('invoices.colClient') },
+  { id: 'due', accessorFn: (i) => new Date(i.dueDate).getTime(), header: t('invoices.colDue'), enableGlobalFilter: false },
   { id: 'issued', accessorFn: (i) => new Date(i.dateIssued).getTime(), header: t('invoices.colIssued') },
   { id: 'status', accessorFn: (i) => i.status, header: t('invoices.colStatus') },
   { id: 'total', accessorFn: (i) => parseFloat(i.total), header: t('invoices.colTotal') },
@@ -458,8 +459,8 @@ Mapping notes:
 const SORT_TO_STATE: Record<SortKey, SortingState> = {
   date_desc: [{ id: 'issued', desc: true }],
   date_asc: [{ id: 'issued', desc: false }],
-  due_asc: [{ id: 'issued', desc: false }],
-  due_desc: [{ id: 'issued', desc: true }],
+  due_asc: [{ id: 'due', desc: false }],
+  due_desc: [{ id: 'due', desc: true }],
   total_desc: [{ id: 'total', desc: true }],
   total_asc: [{ id: 'total', desc: false }],
   number_asc: [{ id: 'number', desc: false }],
