@@ -42,7 +42,8 @@
       "Bash(Get-Content \"C:\\\\Users\\\\zpx\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-zpx-Desktop-Projetos-Billing-System\\\\333d5b36-6e2f-4334-aac8-4ad051ec87a8\\\\tasks\\\\bpj1j0q8n.output\" -Wait)",
       "Bash(Select-String -Pattern \"Local|ready|error|Error|VITE\" --SimpleMatch)",
       "Bash(findstr \":5173 \")",
-      "Bash(node test-app.mjs)"
+      "Bash(node test-app.mjs)",
+      "Bash(Get-ChildItem *)"
     ]
   }
 }
