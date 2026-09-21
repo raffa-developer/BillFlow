@@ -57,6 +57,7 @@ const en = {
     filters: 'Filters',
     clearAllFilters: 'Clear all filters',
     clearFilters: 'Clear filters',
+    loading: 'Loading…',
   },
   dashboard: {
     title: 'Dashboard',
@@ -213,6 +214,7 @@ const en = {
     errorSend: 'Error sending email.',
     remind: 'Remind',
     clone: 'Duplicate',
+    copyPublicLink: 'Copy public link',
     remindTitle: 'Send payment reminder',
     remindDescription: 'A reminder email will be sent to the client with the invoice details.',
     sendReminder: 'Send reminder',

@@ -62,16 +62,25 @@ async function run() {
 
   // --- shell checks (Task 5) ---
   await goto('/');
-  check('rail visible', await page.getByTestId('nav-rail-main').isVisible());
+  check('sidebar visible', await page.getByTestId('nav-item-dashboard').isVisible());
+  check('section groups rendered', await page.getByTestId('nav-section-finance').isVisible());
+  const meUser = await (await fetch(`${API}/me`, { headers: { Authorization: `Bearer ${token}` } })).json();
+  const expectedCompany = meUser.user.companyName?.trim() || 'BillFlow';
+  const workspaceText = await page.getByTestId('nav-workspace').innerText();
+  check('workspace card shows company name', workspaceText.includes(expectedCompany), workspaceText.replace(/\s+/g, ' ').trim());
+  const animationName = await page.getByTestId('nav-item-dashboard').evaluate((el) => getComputedStyle(el).animationName);
+  check('nav items animate in', animationName === 'nav-item-in', animationName);
+  const ariaCurrent = await page.getByTestId('nav-item-dashboard').getAttribute('aria-current');
+  check('active nav item marked aria-current', ariaCurrent === 'page', String(ariaCurrent));
   await shot('dashboard');
-  await page.getByTestId('nav-rail-finance').hover();
-  await page.waitForTimeout(300);
-  check('hover opens flyout', await page.getByTestId('nav-flyout').isVisible());
-  await page.getByTestId('nav-rail-finance').click();
-  await page.waitForTimeout(200);
   await page.getByTestId('nav-item-reports').click();
   await page.waitForLoadState('networkidle');
-  check('flyout navigates to reports', page.url().endsWith('/reports'));
+  check('sidebar navigates to reports', page.url().endsWith('/reports'));
+  await goto('/');
+  await page.getByTestId('nav-workspace').focus();
+  await page.keyboard.press('Tab');
+  check('Tab moves focus into nav items',
+    await page.getByTestId('nav-item-dashboard').evaluate((el) => el === document.activeElement));
   await page.setViewportSize({ width: 390, height: 844 });
   await goto('/');
   await page.getByTestId('topbar-menu').click();
@@ -79,25 +88,24 @@ async function run() {
   check('mobile nav sheet opens', await page.getByTestId('nav-mobile-invoices').isVisible());
   check('mobile language select visible', await page.getByTestId('nav-mobile-language').isVisible());
   check('mobile currency select visible', await page.getByTestId('nav-mobile-currency').isVisible());
+  await page.keyboard.press('Escape');
+  await page.getByTestId('nav-mobile-invoices').waitFor({ state: 'hidden', timeout: 3000 }).catch(() => {});
+  check('escape closes mobile nav', await page.getByTestId('nav-mobile-invoices').isHidden());
   await page.setViewportSize({ width: 1280, height: 800 });
 
   await goto('/');
-  await page.getByTestId('nav-rail-finance').click();
-  await page.waitForTimeout(250);
-  check('flyout visible after pin', await page.getByTestId('nav-flyout').isVisible());
-  await page.locator('main').click();
-  await page.getByTestId('nav-flyout').waitFor({ state: 'hidden', timeout: 3000 }).catch(() => {});
-  check('outside click unpins flyout', !(await page.getByTestId('nav-flyout').isVisible()));
-  const closedWidth = await page.getByTestId('nav-flyout').evaluate((el) => el.getBoundingClientRect().width);
-  check('closed flyout has zero width', closedWidth === 0, String(closedWidth));
-
-  await goto('/');
-  await page.getByTestId('nav-rail-finance').click();
-  await page.waitForTimeout(250);
-  check('flyout visible before escape', await page.getByTestId('nav-flyout').isVisible());
-  await page.keyboard.press('Escape');
-  await page.getByTestId('nav-flyout').waitFor({ state: 'hidden', timeout: 3000 }).catch(() => {});
-  check('escape dismisses flyout', !(await page.getByTestId('nav-flyout').isVisible()));
+  await page.getByTestId('topbar-sidebar-toggle').click();
+  await page.waitForTimeout(400);
+  const collapsedLabelWidth = await page.getByTestId('nav-workspace').locator('span').last().evaluate((el) => el.getBoundingClientRect().width);
+  check('sidebar collapses (labels hidden)', collapsedLabelWidth <= 2, String(collapsedLabelWidth));
+  const collapsedWidth = await page.getByTestId('nav-section-main').evaluate((el) => el.parentElement?.getBoundingClientRect().width ?? 0);
+  check('collapsed sidebar is narrow', collapsedWidth < 100, String(collapsedWidth));
+  const toggleLabel = (await page.getByTestId('topbar-sidebar-toggle').getAttribute('aria-label')) ?? '';
+  check('toggle label switches to expand', toggleLabel.includes('Expand'), toggleLabel);
+  await page.getByTestId('topbar-sidebar-toggle').click();
+  await page.waitForTimeout(400);
+  const expandedWidth = await page.getByTestId('nav-section-main').evaluate((el) => el.parentElement?.getBoundingClientRect().width ?? 0);
+  check('sidebar expands back', expandedWidth > 200, String(expandedWidth));
 
   // --- command palette (Task 6) ---
   await goto('/');
@@ -144,21 +152,16 @@ async function run() {
   const toastVisible = await page.locator('[data-sonner-toast]').count();
   check('sonner toast renders on settings save', toastVisible > 0, String(toastVisible));
 
-  // --- final review: peek dismissal, keyboard entry ---
+  // --- final review: mobile nav closes after navigation ---
+  await page.setViewportSize({ width: 390, height: 844 });
   await goto('/');
-  await page.getByTestId('nav-rail-finance').hover();
+  await page.getByTestId('topbar-menu').click();
   await page.waitForTimeout(300);
-  await page.mouse.move(900, 400);
-  await page.waitForTimeout(700);
-  check('hover-peek flyout dismisses on mouse leave', await page.getByTestId('nav-flyout').isHidden());
-
-  await goto('/');
-  await page.getByTestId('nav-rail-main').focus();
-  await page.keyboard.press('ArrowRight');
-  await page.waitForTimeout(200);
-  check('ArrowRight focuses first flyout item',
-    await page.getByTestId('nav-item-dashboard').evaluate((el) => el === document.activeElement));
-  await page.keyboard.press('Escape');
+  await page.getByTestId('nav-mobile-clients').click();
+  await page.waitForLoadState('networkidle');
+  await page.getByTestId('nav-mobile-clients').waitFor({ state: 'hidden', timeout: 3000 }).catch(() => {});
+  check('mobile nav closes after navigating', await page.getByTestId('nav-mobile-clients').isHidden());
+  await page.setViewportSize({ width: 1280, height: 800 });
 
   // --- invoices ledger interaction (Task 4 fix round) ---
   await goto('/invoices');
@@ -240,6 +243,42 @@ async function run() {
     const invDarkSerious = invDark.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
     check('axe dark: no serious/critical violations on invoices', invDarkSerious.length === 0, invDarkSerious.map((v) => v.id).join(', '));
     await page.evaluate(() => document.documentElement.classList.remove('dark'));
+
+    const detailRow = await page.getAttribute('[data-testid^="invoice-row-"]', 'data-testid');
+    const detailId = detailRow ? detailRow.replace('invoice-row-', '') : null;
+
+    const restyled = [
+      ['clients', '/clients', true],
+      ['products', '/products', false],
+      ['new-invoice', '/invoices/new', false],
+      ['invoice-detail', detailId ? `/invoices/${detailId}` : null, false],
+      ['reports', '/reports', true],
+      ['settings', '/settings', false],
+    ];
+    for (const [name, path, dark] of restyled) {
+      if (!path) continue;
+      await goto(path);
+      await page.addScriptTag({ url: 'https://unpkg.com/axe-core@4.10.2/axe.min.js' });
+      const r = await page.evaluate(async () => window.axe.run(document, {
+        runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa'] },
+      }));
+      const bad = r.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
+      check(`axe: no serious/critical violations on ${name}`, bad.length === 0, bad.map((v) => v.id).join(', '));
+      await shot(name);
+      if (dark) {
+        await page.evaluate(() => document.documentElement.classList.add('dark'));
+        await page.waitForTimeout(300);
+        await shot(`${name}-dark`);
+        const rd = await page.evaluate(async () => window.axe.run(document, {
+          runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa'] },
+        }));
+        const badDark = rd.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
+        check(`axe dark: no serious/critical violations on ${name}`, badDark.length === 0, badDark.map((v) => v.id).join(', '));
+        await page.evaluate(() => document.documentElement.classList.remove('dark'));
+      } else {
+        await shot(name);
+      }
+    }
   }
 
   if (shots) console.log(`\nScreenshots: ${shots}`);

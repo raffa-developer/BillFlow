@@ -5,11 +5,13 @@ import {
   FileText, Table2, Printer, ChevronDown,
 } from 'lucide-react';
 import { invoicesApi } from '../lib/api';
-import { Card } from '../components/ui/CardLegacy';
-import { Button } from '../components/ui/ButtonLegacy';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/components/common/PageHeader';
+import { LoadingState } from '@/components/common/Spinner';
+import { EmptyState } from '@/components/common/EmptyState';
 import { StatusBadge } from '../components/ui/BadgeLegacy';
 import { useCurrency } from '../contexts/CurrencyContext';
-import { useTheme } from '../contexts/ThemeContext';
 import { formatDate, cn } from '../lib/utils';
 import { discountAmountFor } from '../lib/invoiceMath';
 import {
@@ -89,11 +91,11 @@ function StatCard({
 }) {
   return (
     <Card className="p-5">
-      <div className="flex items-start justify-between gap-2">
+      <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">{label}</p>
-          <p className="mt-2 text-2xl font-bold tabular-nums text-slate-900 dark:text-slate-50">{value}</p>
-          <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">{sub}</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
+          <p className="font-display mt-1 text-2xl font-bold tracking-tight tabular-nums text-foreground">{value}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">{sub}</p>
         </div>
         <div className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-xl', accent)}>
           <Icon className="h-4 w-4" />
@@ -115,8 +117,6 @@ const escapeHtml = (value: unknown): string =>
 
 export default function ReportsPage() {
   const { formatAmount } = useCurrency();
-  const { theme } = useTheme();
-  const isDark = theme === 'dark';
 
   const [preset, setPreset]           = useState<Preset>('6m');
   const [dateFrom, setDateFrom]       = useState('');
@@ -176,12 +176,11 @@ export default function ReportsPage() {
   const maxRevenue  = topClients[0]?.revenue ?? 0;
 
   const chart = {
-    grid:          isDark ? '#1e293b' : '#f1f5f9',
-    tick:          isDark ? '#64748b' : '#94a3b8',
-    tooltipBg:     isDark ? '#0f172a' : '#ffffff',
-    tooltipBorder: isDark ? '#1e293b' : '#e2e8f0',
-    tooltipShadow: isDark ? '0 8px 24px rgba(0,0,0,0.5)' : '0 4px 12px rgba(0,0,0,0.08)',
-    tooltipLabel:  isDark ? '#94a3b8' : '#64748b',
+    grid:          'var(--border)',
+    tick:          'var(--muted-foreground)',
+    tooltipBg:     'var(--popover)',
+    tooltipBorder: 'var(--border)',
+    tooltipLabel:  'var(--muted-foreground)',
   };
 
   /* ── helpers ────────────────────────────────────────────────── */
@@ -296,7 +295,7 @@ export default function ReportsPage() {
     const pageH = doc.internal.pageSize.getHeight();
 
     const addPageHeader = (title: string, sub: string) => {
-      doc.setFillColor(37, 99, 235);
+      doc.setFillColor(0, 121, 107);
       doc.rect(0, 0, pageW, 20, 'F');
       doc.setFontSize(13);
       doc.setTextColor(255, 255, 255);
@@ -306,7 +305,7 @@ export default function ReportsPage() {
       doc.setFont('helvetica', 'normal');
       doc.text(title, pageW - 14, 10, { align: 'right' });
       doc.setFontSize(8);
-      doc.setTextColor(191, 219, 254);
+      doc.setTextColor(178, 223, 219);
       doc.text(sub, pageW - 14, 15.5, { align: 'right' });
     };
 
@@ -315,7 +314,7 @@ export default function ReportsPage() {
 
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(100, 116, 139);
+    doc.setTextColor(96, 125, 139);
     doc.text(`Generated: ${new Date().toLocaleDateString()} · ${periodFiltered.length} invoices`, 14, 28);
 
     // Summary metrics
@@ -330,8 +329,8 @@ export default function ReportsPage() {
       ]],
       theme: 'grid',
       headStyles: {
-        fillColor: [241, 245, 249],
-        textColor: [71, 85, 105],
+        fillColor: [238, 238, 238],
+        textColor: [66, 66, 66],
         fontStyle: 'bold',
         fontSize: 8,
         halign: 'center',
@@ -339,7 +338,7 @@ export default function ReportsPage() {
       bodyStyles: {
         fontSize: 12,
         fontStyle: 'bold',
-        textColor: [15, 23, 42],
+        textColor: [66, 66, 66],
         halign: 'center',
         cellPadding: 6,
       },
@@ -350,7 +349,7 @@ export default function ReportsPage() {
     const y1 = (doc as any).lastAutoTable.finalY + 8;
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(30, 41, 59);
+    doc.setTextColor(66, 66, 66);
     doc.text('Invoice Breakdown by Status', 14, y1);
 
     autoTable(doc, {
@@ -362,13 +361,13 @@ export default function ReportsPage() {
         ['Overdue', overdueList.length, formatAmount(overdueList.reduce((s, i) => s + parseFloat(i.total), 0))],
       ],
       theme: 'striped',
-      headStyles: { fillColor: [37, 99, 235], textColor: [255, 255, 255], fontSize: 9 },
-      bodyStyles: { fontSize: 9, textColor: [30, 41, 59] },
+      headStyles: { fillColor: [0, 121, 107], textColor: [255, 255, 255], fontSize: 9 },
+      bodyStyles: { fontSize: 9, textColor: [66, 66, 66] },
       columnStyles: { 1: { halign: 'center' }, 2: { halign: 'right', fontStyle: 'bold' } },
       didDrawCell: (data) => {
         if (data.section === 'body' && data.column.index === 0) {
           const statusColors: Record<string, [number, number, number]> = {
-            Paid: [16, 185, 129], Pending: [245, 158, 11], Overdue: [239, 68, 68],
+            Paid: [0, 121, 107], Pending: [255, 179, 0], Overdue: [229, 57, 53],
           };
           const raw = String(data.cell.raw);
           const color = statusColors[raw];
@@ -377,7 +376,7 @@ export default function ReportsPage() {
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(9);
             doc.text(raw, data.cell.x + data.cell.padding('left'), data.cell.y + data.cell.height / 2 + 1.5, { baseline: 'middle' });
-            doc.setTextColor(30, 41, 59);
+            doc.setTextColor(66, 66, 66);
             doc.setFont('helvetica', 'normal');
           }
         }
@@ -389,7 +388,7 @@ export default function ReportsPage() {
     const y2 = (doc as any).lastAutoTable.finalY + 8;
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(30, 41, 59);
+    doc.setTextColor(66, 66, 66);
     doc.text('Monthly Revenue', 14, y2);
 
     autoTable(doc, {
@@ -404,14 +403,14 @@ export default function ReportsPage() {
       ]),
       foot: [['Total', formatAmount(revenue), formatAmount(outstanding - overdueList.reduce((s, i) => s + parseFloat(i.total), 0)), formatAmount(overdueList.reduce((s, i) => s + parseFloat(i.total), 0)), formatAmount(revenue + outstanding)]],
       theme: 'striped',
-      headStyles: { fillColor: [37, 99, 235], textColor: [255, 255, 255], fontSize: 9 },
-      footStyles: { fillColor: [241, 245, 249], textColor: [30, 41, 59], fontStyle: 'bold', fontSize: 9 },
-      bodyStyles: { fontSize: 9, textColor: [30, 41, 59] },
+      headStyles: { fillColor: [0, 121, 107], textColor: [255, 255, 255], fontSize: 9 },
+      footStyles: { fillColor: [238, 238, 238], textColor: [66, 66, 66], fontStyle: 'bold', fontSize: 9 },
+      bodyStyles: { fontSize: 9, textColor: [66, 66, 66] },
       columnStyles: {
         0: { fontStyle: 'bold' },
-        1: { textColor: [16, 185, 129], halign: 'right' },
-        2: { textColor: [245, 158, 11], halign: 'right' },
-        3: { textColor: [239, 68, 68],  halign: 'right' },
+        1: { textColor: [0, 121, 107], halign: 'right' },
+        2: { textColor: [255, 179, 0], halign: 'right' },
+        3: { textColor: [229, 57, 53], halign: 'right' },
         4: { fontStyle: 'bold', halign: 'right' },
       },
     });
@@ -421,7 +420,7 @@ export default function ReportsPage() {
     const y3 = (doc as any).lastAutoTable.finalY + 8;
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(30, 41, 59);
+    doc.setTextColor(66, 66, 66);
     doc.text('Top Clients by Revenue', 14, y3);
 
     autoTable(doc, {
@@ -435,13 +434,13 @@ export default function ReportsPage() {
         formatAmount(c.revenue),
       ]),
       theme: 'striped',
-      headStyles: { fillColor: [37, 99, 235], textColor: [255, 255, 255], fontSize: 9 },
-      bodyStyles: { fontSize: 9, textColor: [30, 41, 59] },
+      headStyles: { fillColor: [0, 121, 107], textColor: [255, 255, 255], fontSize: 9 },
+      bodyStyles: { fontSize: 9, textColor: [66, 66, 66] },
       columnStyles: {
         0: { halign: 'center', cellWidth: 10 },
         2: { halign: 'center' },
         3: { halign: 'right' },
-        4: { halign: 'right', fontStyle: 'bold', textColor: [16, 185, 129] },
+        4: { halign: 'right', fontStyle: 'bold', textColor: [0, 121, 107] },
       },
     });
 
@@ -451,7 +450,7 @@ export default function ReportsPage() {
 
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(100, 116, 139);
+    doc.setTextColor(96, 125, 139);
     doc.text(`Total: ${formatAmount(filtered.reduce((s, i) => s + parseFloat(i.total), 0))}`, 14, 28);
 
     autoTable(doc, {
@@ -467,9 +466,9 @@ export default function ReportsPage() {
       ]),
       foot: [['', `${filtered.length} invoices`, '', '', 'Grand Total', formatAmount(filtered.reduce((s, i) => s + parseFloat(i.total), 0))]],
       theme: 'striped',
-      headStyles: { fillColor: [37, 99, 235], textColor: [255, 255, 255], fontSize: 9 },
-      footStyles: { fillColor: [241, 245, 249], textColor: [30, 41, 59], fontStyle: 'bold', fontSize: 9 },
-      bodyStyles: { fontSize: 8.5, textColor: [30, 41, 59] },
+      headStyles: { fillColor: [0, 121, 107], textColor: [255, 255, 255], fontSize: 9 },
+      footStyles: { fillColor: [238, 238, 238], textColor: [66, 66, 66], fontStyle: 'bold', fontSize: 9 },
+      bodyStyles: { fontSize: 8.5, textColor: [66, 66, 66] },
       columnStyles: {
         0: { fontStyle: 'bold', cellWidth: 28, font: 'courier' },
         5: { halign: 'right', fontStyle: 'bold' },
@@ -478,7 +477,7 @@ export default function ReportsPage() {
         if (data.section === 'body' && data.column.index === 4) {
           const status = String(data.cell.raw);
           const statusColors: Record<string, [number, number, number]> = {
-            PAID: [16, 185, 129], PENDING: [245, 158, 11], OVERDUE: [239, 68, 68],
+            PAID: [0, 121, 107], PENDING: [255, 179, 0], OVERDUE: [229, 57, 53],
           };
           const color = statusColors[status];
           if (color) {
@@ -486,7 +485,7 @@ export default function ReportsPage() {
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(8.5);
             doc.text(status, data.cell.x + data.cell.padding('left'), data.cell.y + data.cell.height / 2 + 1.5, { baseline: 'middle' });
-            doc.setTextColor(30, 41, 59);
+            doc.setTextColor(66, 66, 66);
             doc.setFont('helvetica', 'normal');
           }
         }
@@ -499,7 +498,7 @@ export default function ReportsPage() {
       doc.setPage(pg);
       doc.setFontSize(8);
       doc.setFont('helvetica', 'normal');
-      doc.setTextColor(148, 163, 184);
+      doc.setTextColor(96, 125, 139);
       doc.text(`Page ${pg} of ${pageCount}`, pageW / 2, pageH - 6, { align: 'center' });
       doc.text('Generated by BillFlow', 14, pageH - 6);
     }
@@ -518,31 +517,31 @@ export default function ReportsPage() {
   <title>Revenue Report · BillFlow</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; }
-    body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 28px 32px; color: #0f172a; font-size: 13px; }
-    .page-header { display: flex; justify-content: space-between; align-items: flex-end; padding-bottom: 14px; border-bottom: 2px solid #2563eb; margin-bottom: 22px; }
-    .brand { font-size: 22px; font-weight: 700; color: #2563eb; }
-    .brand-sub { font-size: 12px; color: #64748b; margin-top: 2px; }
-    .meta { text-align: right; font-size: 11px; color: #94a3b8; }
+    body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 28px 32px; color: #424242; background: #EEEEEE; font-size: 13px; }
+    .page-header { display: flex; justify-content: space-between; align-items: flex-end; padding-bottom: 14px; border-bottom: 2px solid #00796B; margin-bottom: 22px; }
+    .brand { font-size: 22px; font-weight: 700; color: #00796B; }
+    .brand-sub { font-size: 12px; color: #546E7A; margin-top: 2px; }
+    .meta { text-align: right; font-size: 11px; color: #546E7A; }
     .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
-    .stat { border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; }
-    .stat-label { font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
-    .stat-value { font-size: 20px; font-weight: 700; margin-top: 5px; color: #0f172a; }
-    .stat-sub { font-size: 11px; color: #94a3b8; margin-top: 3px; }
-    h2 { font-size: 13px; font-weight: 700; color: #334155; margin: 20px 0 10px; text-transform: uppercase; letter-spacing: 0.04em; }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 22px; }
-    thead tr { background: #f8fafc; }
-    th { text-align: left; padding: 8px 12px; font-size: 10px; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 1px solid #e2e8f0; }
-    td { padding: 8px 12px; font-size: 12px; border-bottom: 1px solid #f1f5f9; color: #0f172a; }
+    .stat { background: #FFFFFF; border: 1px solid rgba(84, 110, 122, 0.28); border-radius: 10px; padding: 14px 16px; }
+    .stat-label { font-size: 10px; color: #546E7A; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
+    .stat-value { font-size: 20px; font-weight: 700; margin-top: 5px; color: #424242; }
+    .stat-sub { font-size: 11px; color: #546E7A; margin-top: 3px; }
+    h2 { font-size: 13px; font-weight: 700; color: #424242; margin: 20px 0 10px; text-transform: uppercase; letter-spacing: 0.04em; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 22px; background: #FFFFFF; }
+    thead tr { background: #EEEEEE; }
+    th { text-align: left; padding: 8px 12px; font-size: 10px; color: #546E7A; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 1px solid rgba(84, 110, 122, 0.28); }
+    td { padding: 8px 12px; font-size: 12px; border-bottom: 1px solid #EEEEEE; color: #424242; }
     tr:last-child td { border-bottom: none; }
-    .status-paid { color: #10b981; font-weight: 700; }
-    .status-pending { color: #f59e0b; font-weight: 700; }
-    .status-overdue { color: #ef4444; font-weight: 700; }
+    .status-paid { color: #00796B; font-weight: 700; }
+    .status-pending { color: #FFB300; font-weight: 700; }
+    .status-overdue { color: #E53935; font-weight: 700; }
     .right { text-align: right; }
     .mono { font-family: 'Courier New', monospace; font-size: 11px; }
     .bold { font-weight: 700; }
-    tfoot tr { background: #f8fafc; }
-    tfoot td { font-weight: 700; border-top: 1px solid #e2e8f0; }
-    .footer { margin-top: 28px; padding-top: 12px; border-top: 1px solid #e2e8f0; font-size: 10px; color: #94a3b8; display: flex; justify-content: space-between; }
+    tfoot tr { background: #EEEEEE; }
+    tfoot td { font-weight: 700; border-top: 1px solid rgba(84, 110, 122, 0.28); }
+    .footer { margin-top: 28px; padding-top: 12px; border-top: 1px solid rgba(84, 110, 122, 0.28); font-size: 10px; color: #546E7A; display: flex; justify-content: space-between; }
     @media print {
       body { padding: 16px 20px; }
       .page-break { page-break-before: always; }
@@ -656,113 +655,111 @@ export default function ReportsPage() {
     <div className="space-y-5">
 
       {/* ── Header ──────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-50">Reports</h1>
-          <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-            {periodFiltered.length} invoices · {formatAmount(revenue + outstanding)} total volume
-          </p>
-        </div>
+      <PageHeader
+        title="Reports"
+        subtitle={`${periodFiltered.length} invoices · ${formatAmount(revenue + outstanding)} total volume`}
+        actions={
+          <div ref={exportRef} className="relative">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setShowExport(v => !v)}
+            >
+              <Download className="h-3.5 w-3.5" />
+              Export
+              <ChevronDown className={cn('h-3 w-3 transition-transform duration-150', showExport && 'rotate-180')} />
+            </Button>
 
-        {/* Export dropdown */}
-        <div ref={exportRef} className="relative">
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => setShowExport(v => !v)}
-          >
-            <Download className="h-3.5 w-3.5" />
-            Export
-            <ChevronDown className={cn('h-3 w-3 transition-transform duration-150', showExport && 'rotate-180')} />
-          </Button>
+            {showExport && (
+              <div className="absolute right-0 top-full z-50 mt-1.5 w-64 rounded-xl border border-border bg-popover py-1.5 shadow-xl">
 
-          {showExport && (
-            <div className="absolute right-0 top-full z-50 mt-1.5 w-64 rounded-xl border border-slate-200 bg-white py-1.5 shadow-xl dark:border-slate-700 dark:bg-slate-900">
+                <p className="px-4 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                  Download
+                </p>
 
-              <p className="px-4 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-600">
-                Download
-              </p>
+                {/* PDF */}
+                <button
+                  onClick={() => { exportPDF(); setShowExport(false); }}
+                  className="flex w-full items-center gap-3 px-4 py-2.5 transition-colors hover:bg-muted/40"
+                >
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-destructive/15 text-destructive dark:bg-destructive/20">
+                    <FileText className="h-4 w-4" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm font-medium text-foreground">PDF Report</p>
+                    <p className="text-xs text-muted-foreground">Summary + full invoice list</p>
+                  </div>
+                </button>
 
-              {/* PDF */}
-              <button
-                onClick={() => { exportPDF(); setShowExport(false); }}
-                className="flex w-full items-center gap-3 px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
-              >
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-100 dark:bg-red-500/15">
-                  <FileText className="h-4 w-4 text-red-600 dark:text-red-400" />
-                </div>
-                <div className="text-left">
-                  <p className="text-sm font-medium text-slate-800 dark:text-slate-200">PDF Report</p>
-                  <p className="text-xs text-slate-400 dark:text-slate-500">Summary + full invoice list</p>
-                </div>
-              </button>
+                {/* Excel */}
+                <button
+                  onClick={() => { exportExcel(); setShowExport(false); }}
+                  className="flex w-full items-center gap-3 px-4 py-2.5 transition-colors hover:bg-muted/40"
+                >
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent/25 text-accent-foreground dark:bg-accent/20 dark:text-accent">
+                    <Table2 className="h-4 w-4" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm font-medium text-foreground">Excel Workbook</p>
+                    <p className="text-xs text-muted-foreground">4 sheets: summary, monthly, clients, invoices</p>
+                  </div>
+                </button>
 
-              {/* Excel */}
-              <button
-                onClick={() => { exportExcel(); setShowExport(false); }}
-                className="flex w-full items-center gap-3 px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
-              >
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-500/15">
-                  <Table2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                </div>
-                <div className="text-left">
-                  <p className="text-sm font-medium text-slate-800 dark:text-slate-200">Excel Workbook</p>
-                  <p className="text-xs text-slate-400 dark:text-slate-500">4 sheets: summary, monthly, clients, invoices</p>
-                </div>
-              </button>
+                {/* CSV */}
+                <button
+                  onClick={() => { exportCSV(filtered); setShowExport(false); }}
+                  className="flex w-full items-center gap-3 px-4 py-2.5 transition-colors hover:bg-muted/40"
+                >
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <Download className="h-4 w-4" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm font-medium text-foreground">CSV</p>
+                    <p className="text-xs text-muted-foreground">
+                      {filtered.length} invoice{filtered.length !== 1 ? 's' : ''} as spreadsheet
+                    </p>
+                  </div>
+                </button>
 
-              {/* CSV */}
-              <button
-                onClick={() => { exportCSV(filtered); setShowExport(false); }}
-                className="flex w-full items-center gap-3 px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
-              >
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-500/15">
-                  <Download className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                </div>
-                <div className="text-left">
-                  <p className="text-sm font-medium text-slate-800 dark:text-slate-200">CSV</p>
-                  <p className="text-xs text-slate-400 dark:text-slate-500">
-                    {filtered.length} invoice{filtered.length !== 1 ? 's' : ''} as spreadsheet
-                  </p>
-                </div>
-              </button>
+                <div className="my-1 mx-3 h-px bg-border" />
 
-              <div className="my-1 mx-3 h-px bg-slate-100 dark:bg-slate-800" />
+                <p className="px-4 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                  Other
+                </p>
 
-              <p className="px-4 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-600">
-                Other
-              </p>
-
-              {/* Print */}
-              <button
-                onClick={() => { exportPrint(); setShowExport(false); }}
-                className="flex w-full items-center gap-3 px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
-              >
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800">
-                  <Printer className="h-4 w-4 text-slate-600 dark:text-slate-400" />
-                </div>
-                <div className="text-left">
-                  <p className="text-sm font-medium text-slate-800 dark:text-slate-200">Print</p>
-                  <p className="text-xs text-slate-400 dark:text-slate-500">Open print-friendly view</p>
-                </div>
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
+                {/* Print */}
+                <button
+                  onClick={() => { exportPrint(); setShowExport(false); }}
+                  className="flex w-full items-center gap-3 px-4 py-2.5 transition-colors hover:bg-muted/40"
+                >
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                    <Printer className="h-4 w-4" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm font-medium text-foreground">Print</p>
+                    <p className="text-xs text-muted-foreground">Open print-friendly view</p>
+                  </div>
+                </button>
+              </div>
+            )}
+          </div>
+        }
+      />
 
       {/* ── Filters ─────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-1 rounded-lg bg-slate-100 p-1 dark:bg-slate-800/80">
+        <div className="flex items-center gap-1 rounded-lg bg-muted p-1">
           {PRESETS.map(p => (
             <button
               key={p.value}
-              onClick={() => { setPreset(p.value); if (p.value !== 'custom') { setDateFrom(''); setDateTo(''); } }}
+              type="button"
+              onClick={() => {
+                setPreset(p.value);
+                if (p.value !== 'custom') { setDateFrom(''); setDateTo(''); }
+              }}
               className={cn(
-                'rounded-md px-3 py-1.5 text-xs font-semibold transition-all',
-                preset === p.value
-                  ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-slate-100'
-                  : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                'rounded-md px-3 py-1.5 text-xs font-semibold transition-colors',
+                preset === p.value ? 'bg-primary text-primary-foreground' : 'text-foreground hover:bg-background'
               )}
             >
               {p.label}
@@ -776,19 +773,21 @@ export default function ReportsPage() {
               type="date"
               value={dateFrom}
               onChange={e => setDateFrom(e.target.value)}
-              className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+              className="h-9 rounded-lg border border-border bg-card px-2 text-xs text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
-            <span className="text-xs text-slate-400">to</span>
+            <span className="text-xs text-muted-foreground">to</span>
             <input
               type="date"
               value={dateTo}
               onChange={e => setDateTo(e.target.value)}
-              className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+              className="h-9 rounded-lg border border-border bg-card px-2 text-xs text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
             {hasCustomDates && (
               <button
+                type="button"
+                aria-label="Clear dates"
                 onClick={() => { setDateFrom(''); setDateTo(''); }}
-                className="text-slate-400 hover:text-red-500 transition-colors"
+                className="text-muted-foreground transition-colors hover:text-destructive"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -802,13 +801,10 @@ export default function ReportsPage() {
               key={s}
               onClick={() => setStatusFilter(s)}
               className={cn(
-                'rounded-full border px-3 py-1 text-xs font-semibold transition-all',
+                'rounded-full border px-3.5 py-1 text-xs font-semibold transition-colors',
                 statusFilter === s
-                  ? s === 'all'     ? 'border-slate-700 bg-slate-800 text-white dark:border-slate-600'
-                  : s === 'PAID'    ? 'border-emerald-600 bg-emerald-600 text-white'
-                  : s === 'PENDING' ? 'border-amber-500 bg-amber-500 text-white'
-                  :                   'border-red-600 bg-red-600 text-white'
-                  : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:border-slate-600'
+                  ? 'border-primary bg-primary text-primary-foreground shadow-sm'
+                  : 'border-border bg-card text-muted-foreground hover:text-foreground'
               )}
             >
               {s === 'all' ? 'All statuses' : s.charAt(0) + s.slice(1).toLowerCase()}
@@ -824,14 +820,14 @@ export default function ReportsPage() {
           value={formatAmount(revenue)}
           sub={`${paidList.length} paid invoice${paidList.length !== 1 ? 's' : ''}`}
           icon={TrendingUp}
-          accent="bg-emerald-100 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400"
+          accent="bg-accent text-accent-foreground"
         />
         <StatCard
           label="Outstanding"
           value={formatAmount(outstanding)}
           sub={`${pendingList.length + overdueList.length} unpaid`}
           icon={Clock}
-          accent="bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400"
+          accent="bg-[#FFB300]/25 text-foreground dark:bg-[#FFB300]/20"
         />
         <StatCard
           label="Collection rate"
@@ -840,10 +836,10 @@ export default function ReportsPage() {
           icon={BarChart3}
           accent={
             collectionRate >= 75
-              ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400'
+              ? 'bg-accent text-accent-foreground'
               : collectionRate >= 40
-              ? 'bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400'
-              : 'bg-red-100 text-red-600 dark:bg-red-500/15 dark:text-red-400'
+              ? 'bg-[#FFB300]/25 text-foreground dark:bg-[#FFB300]/20'
+              : 'bg-destructive/15 text-destructive dark:bg-destructive/20'
           }
         />
         <StatCard
@@ -851,27 +847,25 @@ export default function ReportsPage() {
           value={formatAmount(avg)}
           sub={`${overdueList.length} overdue`}
           icon={AlertCircle}
-          accent="bg-blue-100 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400"
+          accent="bg-secondary/15 text-secondary"
         />
       </div>
 
       {/* ── Chart ────────────────────────────────────────────── */}
       <Card className="p-5">
         <div className="mb-5 flex items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Monthly revenue</h2>
-          <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
-            <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-emerald-500" />Paid</span>
-            <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-amber-400" />Pending</span>
-            <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-red-500" />Overdue</span>
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Monthly revenue</h2>
+          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-accent" />Paid</span>
+            <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-[#FFB300]" />Pending</span>
+            <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-destructive" />Overdue</span>
           </div>
         </div>
 
         {isLoading ? (
-          <div className="flex h-52 items-center justify-center">
-            <div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
-          </div>
+          <LoadingState className="h-52 items-center py-0" />
         ) : monthlyData.length === 0 ? (
-          <div className="flex h-52 items-center justify-center text-sm text-slate-400 dark:text-slate-500">
+          <div className="flex h-52 items-center justify-center text-sm text-muted-foreground">
             No data for this period
           </div>
         ) : (
@@ -896,7 +890,6 @@ export default function ReportsPage() {
                   background: chart.tooltipBg,
                   borderRadius: '10px',
                   border: `1px solid ${chart.tooltipBorder}`,
-                  boxShadow: chart.tooltipShadow,
                   fontSize: '12px',
                   padding: '10px 14px',
                 }}
@@ -905,11 +898,11 @@ export default function ReportsPage() {
                   formatAmount(Number(v)),
                   name === 'paid' ? 'Paid' : name === 'pending' ? 'Pending' : 'Overdue',
                 ]}
-                cursor={{ fill: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)' }}
+                cursor={{ fill: 'var(--muted)', fillOpacity: 0.4 }}
               />
-              <Bar dataKey="paid"    fill="#10b981" radius={[3, 3, 0, 0]} />
-              <Bar dataKey="pending" fill="#f59e0b" radius={[3, 3, 0, 0]} />
-              <Bar dataKey="overdue" fill="#ef4444" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="paid"    fill="var(--accent)" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="pending" fill="#FFB300" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="overdue" fill="var(--destructive)" radius={[3, 3, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         )}
@@ -933,12 +926,11 @@ export default function ReportsPage() {
           return { ...b, count: list.length, amount: list.reduce((s, i) => s + parseFloat(i.total), 0) };
         });
         const totalUnpaid = unpaid.reduce((s, i) => s + parseFloat(i.total), 0);
-        const colors = ['text-slate-600 dark:text-slate-300', 'text-amber-600 dark:text-amber-400', 'text-orange-600 dark:text-orange-400', 'text-red-600 dark:text-red-400'];
-        const bars   = ['bg-slate-400', 'bg-amber-400', 'bg-orange-500', 'bg-red-500'];
+        const bars = ['bg-secondary', 'bg-[#FFB300]', 'bg-destructive/60', 'bg-destructive'];
         return (
           <Card className="p-5">
-            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1">Invoice Aging</h2>
-            <p className="text-xs text-slate-400 dark:text-slate-500 mb-5">
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Invoice Aging</h2>
+            <p className="mb-5 mt-0.5 text-xs text-muted-foreground">
               {unpaid.length} unpaid invoice{unpaid.length !== 1 ? 's' : ''} · {formatAmount(totalUnpaid)} outstanding (all time)
             </p>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -946,10 +938,13 @@ export default function ReportsPage() {
                 const pct = totalUnpaid > 0 ? (b.amount / totalUnpaid) * 100 : 0;
                 return (
                   <div key={b.label} className="space-y-2">
-                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{b.label}</p>
-                    <p className={cn('text-xl font-bold tabular-nums', colors[i])}>{formatAmount(b.amount)}</p>
-                    <p className="text-xs text-slate-400 dark:text-slate-500">{b.count} invoice{b.count !== 1 ? 's' : ''}</p>
-                    <div className="h-1.5 w-full rounded-full bg-slate-100 dark:bg-slate-800">
+                    <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                      <span className={cn('inline-block h-2 w-2 shrink-0 rounded-sm', bars[i])} />
+                      {b.label}
+                    </p>
+                    <p className="font-display text-xl font-bold tabular-nums text-foreground">{formatAmount(b.amount)}</p>
+                    <p className="text-xs text-muted-foreground">{b.count} invoice{b.count !== 1 ? 's' : ''}</p>
+                    <div className="h-1.5 w-full rounded-full bg-muted">
                       <div className={cn('h-1.5 rounded-full transition-all duration-500', bars[i])} style={{ width: `${pct}%` }} />
                     </div>
                   </div>
@@ -965,35 +960,40 @@ export default function ReportsPage() {
 
         {/* Top clients */}
         <Card className="lg:col-span-2">
-          <div className="border-b border-slate-100 px-5 py-4 dark:border-slate-800">
-            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Top clients</h2>
-            <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">By paid revenue</p>
+          <div className="border-b border-border px-5 py-4">
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Top clients</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">By paid revenue</p>
           </div>
           {topClients.length === 0 ? (
-            <div className="flex items-center justify-center py-12 text-sm text-slate-400 dark:text-slate-500">
-              No data for this period
-            </div>
+            <EmptyState title="No data for this period" />
           ) : (
-            <div className="divide-y divide-slate-100 dark:divide-slate-800">
+            <div>
               {topClients.map((client, i) => {
                 const pct = maxRevenue > 0 ? (client.revenue / maxRevenue) * 100 : 0;
-                const barColors = ['bg-blue-500', 'bg-violet-500', 'bg-emerald-500', 'bg-amber-500', 'bg-rose-500', 'bg-cyan-500'];
-                const avatarBgs = ['bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300', 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300', 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300', 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300', 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300', 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300'];
+                const barColors = ['bg-primary', 'bg-accent', 'bg-secondary', 'bg-[#FFB300]', 'bg-destructive', 'bg-primary/60'];
+                const avatarBgs = [
+                  'bg-primary/10 text-primary',
+                  'bg-accent/25 text-accent-foreground dark:bg-accent/20 dark:text-accent',
+                  'bg-secondary/15 text-secondary',
+                  'bg-[#FFB300]/25 text-foreground dark:bg-[#FFB300]/20',
+                  'bg-destructive/15 text-destructive dark:bg-destructive/20',
+                  'bg-primary/10 text-primary',
+                ];
                 const initials = client.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
                 return (
-                  <div key={client.name} className="flex items-center gap-3 px-5 py-3.5">
+                  <div key={client.name} className="flex items-center gap-3 border-b border-border px-5 py-3.5 last:border-b-0 hover:bg-muted/40">
                     <div className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold', avatarBgs[i % avatarBgs.length])}>
                       {initials}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="mb-1 flex items-baseline justify-between gap-2">
-                        <span className="truncate text-sm font-medium text-slate-700 dark:text-slate-300">{client.name}</span>
-                        <span className="shrink-0 text-xs font-semibold tabular-nums text-slate-900 dark:text-slate-100">{formatAmount(client.revenue)}</span>
+                        <span className="truncate text-sm font-medium text-foreground">{client.name}</span>
+                        <span className="shrink-0 font-mono text-xs font-semibold tabular-nums text-foreground">{formatAmount(client.revenue)}</span>
                       </div>
-                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
                         <div className={cn('h-1.5 rounded-full transition-all duration-500', barColors[i % barColors.length])} style={{ width: `${pct}%` }} />
                       </div>
-                      <p className="mt-1 text-[10px] text-slate-400 dark:text-slate-500">
+                      <p className="mt-1 text-[10px] text-muted-foreground">
                         {client.count} invoice{client.count !== 1 ? 's' : ''} · {formatAmount(client.total)} total
                       </p>
                     </div>
@@ -1006,33 +1006,36 @@ export default function ReportsPage() {
 
         {/* Filtered invoice list */}
         <Card className="lg:col-span-3">
-          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 dark:border-slate-800">
+          <div className="flex items-center justify-between border-b border-border px-5 py-4">
             <div>
-              <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Invoices</h2>
-              <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">{filtered.length} result{filtered.length !== 1 ? 's' : ''}</p>
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Invoices</h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">{filtered.length} result{filtered.length !== 1 ? 's' : ''}</p>
             </div>
           </div>
           {filtered.length === 0 ? (
-            <div className="flex items-center justify-center py-12 text-sm text-slate-400 dark:text-slate-500">
-              No invoices match the selected filters
-            </div>
+            <EmptyState title="No invoices match the selected filters" />
           ) : (
-            <div className="max-h-[400px] divide-y divide-slate-100 overflow-y-auto dark:divide-slate-800">
+            <div
+              role="region"
+              aria-label="Invoice results"
+              tabIndex={0}
+              className="max-h-[400px] overflow-y-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
               {filtered.slice(0, 30).map(inv => (
-                <div key={inv.id} className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                  <span className="w-20 shrink-0 font-mono text-xs font-medium text-slate-500 dark:text-slate-400">{inv.number}</span>
+                <div key={inv.id} className="flex items-center gap-3 border-b border-border px-5 py-3 transition-colors last:border-b-0 hover:bg-muted/40">
+                  <span className="w-20 shrink-0 font-mono text-xs font-medium text-muted-foreground">{inv.number}</span>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-slate-800 dark:text-slate-200">{inv.client.name}</p>
-                    <p className="text-[10px] text-slate-400 dark:text-slate-500">{formatDate(inv.dateIssued)}</p>
+                    <p className="truncate text-sm font-medium text-foreground">{inv.client.name}</p>
+                    <p className="text-[10px] text-muted-foreground">{formatDate(inv.dateIssued)}</p>
                   </div>
                   <StatusBadge status={inv.status} />
-                  <span className="shrink-0 text-sm font-semibold tabular-nums text-slate-700 dark:text-slate-200">
+                  <span className="shrink-0 font-mono text-sm font-semibold tabular-nums text-foreground">
                     {formatAmount(inv.total)}
                   </span>
                 </div>
               ))}
               {filtered.length > 30 && (
-                <div className="px-5 py-3 text-center text-xs text-slate-400 dark:text-slate-500">
+                <div className="border-t border-border px-5 py-3 text-center text-xs text-muted-foreground">
                   Showing 30 of {filtered.length} — export for full list
                 </div>
               )}

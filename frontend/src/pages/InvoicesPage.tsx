@@ -10,7 +10,7 @@ import { invoicesApi } from '../lib/api';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/BadgeLegacy';
-import { Modal } from '@/components/ui/ModalLegacy';
+import { Modal } from '@/components/common/Modal';
 import { formatDate, cn } from '../lib/utils';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useToast } from '../contexts/ToastContext';
@@ -527,8 +527,7 @@ export default function InvoicesPage() {
         </div>
       )}
 
-      <Modal open={deleteId !== null} onClose={() => setDeleteId(null)} title={t('invoices.deleteTitle')}>
-        <p className="text-sm text-muted-foreground mb-5">{t('invoices.deleteConfirm')}</p>
+      <Modal open={deleteId !== null} onClose={() => setDeleteId(null)} title={t('invoices.deleteTitle')} description={t('invoices.deleteConfirm')}>
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={() => setDeleteId(null)}>{t('common.cancel')}</Button>
           <Button data-testid="invoice-delete-confirm" variant="destructive" disabled={deleteMutation.isPending} onClick={() => deleteId !== null && deleteMutation.mutate(deleteId)}>
@@ -537,10 +536,7 @@ export default function InvoicesPage() {
         </div>
       </Modal>
 
-      <Modal open={bulkDeleteOpen} onClose={() => setBulkDeleteOpen(false)} title={t('invoices.bulkDeleteTitle')}>
-        <p className="text-sm text-muted-foreground mb-5">
-          {t('invoices.bulkDeleteConfirm', { count: selectedIds.size })}
-        </p>
+      <Modal open={bulkDeleteOpen} onClose={() => setBulkDeleteOpen(false)} title={t('invoices.bulkDeleteTitle')} description={t('invoices.bulkDeleteConfirm', { count: selectedIds.size })}>
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={() => setBulkDeleteOpen(false)}>{t('common.cancel')}</Button>
           <Button variant="destructive" disabled={bulkDeleteMutation.isPending} onClick={() => bulkDeleteMutation.mutate()}>

@@ -59,6 +59,7 @@ const fr: Translations = {
     filters: 'Filtres',
     clearAllFilters: 'Effacer tous les filtres',
     clearFilters: 'Effacer les filtres',
+    loading: 'Chargement…',
   },
   dashboard: {
     title: 'Tableau de bord',
@@ -215,6 +216,7 @@ const fr: Translations = {
     errorSend: "Erreur lors de l'envoi de l'e-mail.",
     remind: 'Rappel',
     clone: 'Dupliquer',
+    copyPublicLink: 'Copier le lien public',
     remindTitle: 'Envoyer un rappel de paiement',
     remindDescription: 'Un e-mail de rappel sera envoyé au client avec les détails de la facture.',
     sendReminder: 'Envoyer le rappel',

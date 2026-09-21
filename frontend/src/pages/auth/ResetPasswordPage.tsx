@@ -3,8 +3,10 @@ import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Receipt, CheckCircle2 } from 'lucide-react';
 import { authApi } from '../../lib/api';
-import { Button } from '../../components/ui/ButtonLegacy';
-import { Input } from '../../components/ui/InputLegacy';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Spinner } from '@/components/common/Spinner';
 
 export default function ResetPasswordPage() {
   const { t } = useTranslation();
@@ -37,63 +39,70 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950 px-4 py-12">
+    <div className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-600">
-            <Receipt className="h-6 w-6 text-white" />
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+            <Receipt className="h-6 w-6" />
           </div>
-          <span className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">BillFlow</span>
+          <span className="font-display text-2xl font-bold tracking-tight text-foreground">BillFlow</span>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-7 shadow-sm">
+        <div className="rounded-xl border border-border bg-card p-7 shadow">
           {done ? (
             <div className="text-center space-y-3">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
-                <CheckCircle2 className="h-6 w-6 text-green-600" />
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-accent text-accent-foreground">
+                <CheckCircle2 className="h-6 w-6" />
               </div>
-              <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{t('auth.reset.change')}</h1>
-              <p className="text-sm text-slate-500 dark:text-slate-400">{t('auth.reset.redirecting')}</p>
+              <h1 className="font-display text-lg font-bold tracking-tight text-foreground">{t('auth.reset.change')}</h1>
+              <p className="text-sm text-muted-foreground">{t('auth.reset.redirecting')}</p>
             </div>
           ) : (
             <>
               <div className="mb-5">
-                <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">{t('auth.reset.title')}</h1>
-                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t('settings.passwordDescription')}</p>
+                <h1 className="font-display text-xl font-bold tracking-tight text-foreground">{t('auth.reset.title')}</h1>
+                <p className="mt-0.5 text-sm text-muted-foreground">{t('settings.passwordDescription')}</p>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
-                <Input
-                  label={t('auth.reset.newPassword')}
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  minLength={8}
-                  required
-                  autoFocus
-                />
-                <Input
-                  label={t('settings.confirmPassword')}
-                  type="password"
-                  value={confirm}
-                  onChange={(e) => setConfirm(e.target.value)}
-                  minLength={8}
-                  required
-                />
+                <div className="space-y-1.5">
+                  <Label htmlFor="reset-new-password">{t('auth.reset.newPassword')}</Label>
+                  <Input
+                    id="reset-new-password"
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    minLength={8}
+                    required
+                    autoFocus
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="reset-confirm-password">{t('settings.confirmPassword')}</Label>
+                  <Input
+                    id="reset-confirm-password"
+                    type="password"
+                    value={confirm}
+                    onChange={(e) => setConfirm(e.target.value)}
+                    minLength={8}
+                    required
+                  />
+                </div>
 
                 {error && (
-                  <div className="rounded-lg border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/40 px-3 py-2.5 text-sm text-red-600">
+                  <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm text-destructive">
                     {error}
                   </div>
                 )}
 
-                <Button type="submit" className="w-full h-10" loading={loading} size="lg">
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading && <Spinner className="h-4 w-4 border-primary-foreground border-t-transparent" />}
                   {t('auth.reset.change')}
                 </Button>
               </form>
 
               <div className="mt-5 text-center">
-                <Link to="/login" className="text-sm text-slate-500 dark:text-slate-400 hover:text-blue-600 hover:underline">
+                <Link to="/login" className="text-sm text-primary hover:underline">
                   {t('auth.forgot.backToLogin')}
                 </Link>
               </div>

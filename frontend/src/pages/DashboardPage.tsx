@@ -127,7 +127,7 @@ export default function DashboardPage() {
               onClick={() => setPeriod(p)}
               className={cn(
                 'rounded-md px-3 py-1.5 text-xs font-semibold transition-colors',
-                period === p ? 'bg-primary text-primary-foreground' : 'text-foreground hover:bg-muted'
+                period === p ? 'bg-primary text-primary-foreground' : 'text-foreground hover:bg-background'
               )}
             >
               {t(`dashboard.period${p.charAt(0).toUpperCase() + p.slice(1)}`)}

@@ -36,8 +36,6 @@ const fail = (label, detail = '') => {
     await page.keyboard.press('Escape');
     await page.waitForTimeout(200);
     const id = NAV_ID[href];
-    await page.getByTestId(`nav-rail-${id === 'settings' ? 'system' : id === 'products' || id === 'reports' ? 'finance' : 'main'}`).click();
-    await page.waitForTimeout(250);
     await page.getByTestId(`nav-item-${id}`).click();
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(600);

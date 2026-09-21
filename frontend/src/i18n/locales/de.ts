@@ -59,6 +59,7 @@ const de: Translations = {
     filters: 'Filter',
     clearAllFilters: 'Alle Filter löschen',
     clearFilters: 'Filter löschen',
+    loading: 'Wird geladen…',
   },
   dashboard: {
     title: 'Dashboard',
@@ -215,6 +216,7 @@ const de: Translations = {
     errorSend: 'Fehler beim Senden der E-Mail.',
     remind: 'Erinnern',
     clone: 'Duplizieren',
+    copyPublicLink: 'Öffentlichen Link kopieren',
     remindTitle: 'Zahlungserinnerung senden',
     remindDescription: 'Eine Erinnerungs-E-Mail wird mit den Rechnungsdetails an den Kunden gesendet.',
     sendReminder: 'Erinnerung senden',

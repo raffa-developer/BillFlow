@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
-import { ChevronsUpDown, LogOut, Menu, Moon, Search, Sun, User } from 'lucide-react';
+import { ChevronsUpDown, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Search, Sun, User } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -11,9 +11,11 @@ import { NAV_SECTIONS } from './nav';
 interface TopbarProps {
   onOpenCommand: () => void;
   onOpenMobileNav: () => void;
+  collapsed: boolean;
+  onToggleSidebar: () => void;
 }
 
-export function Topbar({ onOpenCommand, onOpenMobileNav }: TopbarProps) {
+export function Topbar({ onOpenCommand, onOpenMobileNav, collapsed, onToggleSidebar }: TopbarProps) {
   const { t, i18n } = useTranslation();
   const { pathname } = useLocation();
   const { user, logout } = useAuth();
@@ -44,6 +46,14 @@ export function Topbar({ onOpenCommand, onOpenMobileNav }: TopbarProps) {
 
   return (
     <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border bg-card px-3 lg:px-4">
+      <button
+        data-testid="topbar-sidebar-toggle"
+        aria-label={collapsed ? t('nav.expandSidebar') : t('nav.collapseSidebar')}
+        onClick={onToggleSidebar}
+        className="hidden rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground lg:inline-flex"
+      >
+        {collapsed ? <PanelLeftOpen className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
+      </button>
       <button
         data-testid="topbar-menu"
         aria-label={t('nav.menu')}

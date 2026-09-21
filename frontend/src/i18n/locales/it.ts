@@ -59,6 +59,7 @@ const it: Translations = {
     filters: 'Filtri',
     clearAllFilters: 'Cancella tutti i filtri',
     clearFilters: 'Cancella filtri',
+    loading: 'Caricamento…',
   },
   dashboard: {
     title: 'Dashboard',
@@ -215,6 +216,7 @@ const it: Translations = {
     errorSend: "Errore nell'invio dell'email.",
     remind: 'Promemoria',
     clone: 'Duplica',
+    copyPublicLink: 'Copia link pubblico',
     remindTitle: 'Invia promemoria di pagamento',
     remindDescription: "Un'email di promemoria verrà inviata al cliente con i dettagli della fattura.",
     sendReminder: 'Invia promemoria',

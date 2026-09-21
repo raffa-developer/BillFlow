@@ -39,13 +39,3 @@ export const NAV_SECTIONS: NavSection[] = [
     ],
   },
 ];
-
-export function activeSectionId(pathname: string): string {
-  for (const section of NAV_SECTIONS) {
-    for (const item of section.items) {
-      const isActive = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
-      if (isActive) return section.id;
-    }
-  }
-  return 'main';
-}

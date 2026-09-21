@@ -59,6 +59,7 @@ const es: Translations = {
     filters: 'Filtros',
     clearAllFilters: 'Borrar todos los filtros',
     clearFilters: 'Borrar filtros',
+    loading: 'Cargando…',
   },
   dashboard: {
     title: 'Panel',
@@ -215,6 +216,7 @@ const es: Translations = {
     errorSend: 'Error al enviar correo.',
     remind: 'Recordatorio',
     clone: 'Duplicar',
+    copyPublicLink: 'Copiar enlace público',
     remindTitle: 'Enviar recordatorio de pago',
     remindDescription: 'Se enviará un correo de recordatorio al cliente con los detalles de la factura.',
     sendReminder: 'Enviar recordatorio',

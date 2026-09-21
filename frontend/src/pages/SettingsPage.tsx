@@ -1,69 +1,64 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type ComponentProps } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Building2, UserCog } from 'lucide-react';
 import { meApi } from '../lib/api';
-import { Card } from '../components/ui/CardLegacy';
-import { Button } from '../components/ui/ButtonLegacy';
-import { Input } from '../components/ui/InputLegacy';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { PageHeader } from '@/components/common/PageHeader';
+import { LoadingState } from '@/components/common/Spinner';
 import { useToast } from '../contexts/ToastContext';
 import { useAuth } from '../contexts/AuthContext';
-import { cn } from '../lib/utils';
 
 type Tab = 'company' | 'account';
+
+function Field({ id, label, ...props }: { id: string; label: string } & ComponentProps<typeof Input>) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Label htmlFor={id}>{label}</Label>
+      <Input id={id} {...props} />
+    </div>
+  );
+}
 
 export default function SettingsPage() {
   const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>('company');
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{t('settings.title')}</h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400">{t('settings.subtitle')}</p>
-      </div>
+    <div className="space-y-5">
+      <PageHeader title={t('settings.title')} subtitle={t('settings.subtitle')} />
 
-      <div className="flex gap-2 border-b border-slate-200 dark:border-slate-800">
-        <TabButton active={tab === 'company'} onClick={() => setTab('company')} icon={<Building2 className="h-4 w-4" />}>
-          {t('settings.tabCompany')}
-        </TabButton>
-        <TabButton active={tab === 'account'} onClick={() => setTab('account')} icon={<UserCog className="h-4 w-4" />}>
-          {t('settings.tabAccount')}
-        </TabButton>
-      </div>
+      <Tabs value={tab} onValueChange={(value) => setTab(value as Tab)}>
+        <TabsList>
+          <TabsTrigger value="company" className="gap-2">
+            <Building2 className="h-4 w-4" />
+            {t('settings.tabCompany')}
+          </TabsTrigger>
+          <TabsTrigger value="account" className="gap-2">
+            <UserCog className="h-4 w-4" />
+            {t('settings.tabAccount')}
+          </TabsTrigger>
+        </TabsList>
 
-      {tab === 'company' ? <CompanyTab /> : <AccountTab />}
+        <TabsContent value="company" className="mt-4">
+          <CompanyTab />
+        </TabsContent>
+        <TabsContent value="account" className="mt-4">
+          <AccountTab />
+        </TabsContent>
+      </Tabs>
     </div>
-  );
-}
-
-function TabButton({
-  active, onClick, icon, children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  icon: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        'flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors -mb-px',
-        active
-          ? 'border-blue-600 text-blue-600'
-          : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
-      )}
-    >
-      {icon}
-      {children}
-    </button>
   );
 }
 
 function CompanyTab() {
   const { t } = useTranslation();
   const qc = useQueryClient();
+  const { refresh } = useAuth();
   const { toast } = useToast();
   const { data, isLoading } = useQuery({ queryKey: ['me'], queryFn: () => meApi.get() });
   const user = data?.data.user;
@@ -106,7 +101,8 @@ function CompanyTab() {
       defaultTaxRate: parseFloat(form.defaultTaxRate) || 0,
       defaultPaymentDays: parseInt(form.defaultPaymentDays) || 30,
     }),
-    onSuccess: () => {
+    onSuccess: async () => {
+      await refresh();
       qc.invalidateQueries({ queryKey: ['me'] });
       toast.success(t('settings.companySaved'));
     },
@@ -115,34 +111,37 @@ function CompanyTab() {
   });
 
   if (isLoading) {
-    return <div className="flex justify-center py-12"><div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" /></div>;
+    return <LoadingState />;
   }
 
   return (
-    <Card className="p-6">
-      <p className="text-sm text-slate-500 dark:text-slate-400 mb-5">{t('settings.companyDescription')}</p>
-      <form onSubmit={(e) => { e.preventDefault(); save.mutate(); }} className="space-y-4">
+    <Card className="p-5">
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('settings.tabCompany')}</p>
+      <p className="mt-1 text-sm text-muted-foreground">{t('settings.companyDescription')}</p>
+
+      <form onSubmit={(e) => { e.preventDefault(); save.mutate(); }} className="mt-5 space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">
-          <Input label={t('settings.companyName')} value={form.companyName} onChange={(e) => setForm({ ...form, companyName: e.target.value })} placeholder="Acme Lda." />
-          <Input label={t('settings.vat')} value={form.companyVat} onChange={(e) => setForm({ ...form, companyVat: e.target.value })} placeholder="PT123456789" />
-          <Input label={t('common.email')} type="email" value={form.companyEmail} onChange={(e) => setForm({ ...form, companyEmail: e.target.value })} placeholder="contato@empresa.pt" />
-          <Input label={t('common.phone')} value={form.companyPhone} onChange={(e) => setForm({ ...form, companyPhone: e.target.value })} placeholder="+351 ..." />
+          <Field id="settings-company-name" label={t('settings.companyName')} value={form.companyName} onChange={(e) => setForm({ ...form, companyName: e.target.value })} placeholder="Acme Lda." />
+          <Field id="settings-company-vat" label={t('settings.vat')} value={form.companyVat} onChange={(e) => setForm({ ...form, companyVat: e.target.value })} placeholder="PT123456789" />
+          <Field id="settings-company-email" label={t('common.email')} type="email" value={form.companyEmail} onChange={(e) => setForm({ ...form, companyEmail: e.target.value })} placeholder="contato@empresa.pt" />
+          <Field id="settings-company-phone" label={t('common.phone')} value={form.companyPhone} onChange={(e) => setForm({ ...form, companyPhone: e.target.value })} placeholder="+351 ..." />
         </div>
-        <Input label={t('common.address')} value={form.companyAddress} onChange={(e) => setForm({ ...form, companyAddress: e.target.value })} placeholder="Rua, número, código postal, cidade" />
-        <Input label={t('settings.logoUrl')} type="url" value={form.companyLogoUrl} onChange={(e) => setForm({ ...form, companyLogoUrl: e.target.value })} placeholder="https://..." />
+        <Field id="settings-company-address" label={t('common.address')} value={form.companyAddress} onChange={(e) => setForm({ ...form, companyAddress: e.target.value })} placeholder="Rua, número, código postal, cidade" />
+        <Field id="settings-company-logo" label={t('settings.logoUrl')} type="url" value={form.companyLogoUrl} onChange={(e) => setForm({ ...form, companyLogoUrl: e.target.value })} placeholder="https://..." />
 
         {form.companyLogoUrl && (
-          <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 p-3">
-            <p className="mb-2 text-xs font-medium text-slate-500 dark:text-slate-400">{t('settings.logoPreview')}</p>
+          <div className="rounded-lg border border-border bg-muted/40 p-3">
+            <p className="mb-2 text-xs font-medium text-muted-foreground">{t('settings.logoPreview')}</p>
             <img src={form.companyLogoUrl} alt="Logo" className="h-12 object-contain" />
           </div>
         )}
 
-        <div className="border-t border-slate-200 dark:border-slate-800 pt-5 mt-2">
-          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">{t('settings.defaultsSection')}</h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">{t('settings.defaultsDescription')}</p>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Input
+        <div className="border-t border-border pt-5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('settings.defaultsSection')}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{t('settings.defaultsDescription')}</p>
+          <div className="mt-4 grid gap-4 sm:grid-cols-3">
+            <Field
+              id="settings-default-tax-rate"
               label={t('settings.defaultTaxRate')}
               type="number"
               min="0"
@@ -151,7 +150,8 @@ function CompanyTab() {
               value={form.defaultTaxRate}
               onChange={(e) => setForm({ ...form, defaultTaxRate: e.target.value })}
             />
-            <Input
+            <Field
+              id="settings-default-payment-days"
               label={t('settings.defaultPaymentDays')}
               type="number"
               min="1"
@@ -159,7 +159,8 @@ function CompanyTab() {
               value={form.defaultPaymentDays}
               onChange={(e) => setForm({ ...form, defaultPaymentDays: e.target.value })}
             />
-            <Input
+            <Field
+              id="settings-invoice-prefix"
               label={t('settings.invoicePrefix')}
               value={form.invoicePrefix}
               onChange={(e) => setForm({ ...form, invoicePrefix: e.target.value })}
@@ -169,7 +170,7 @@ function CompanyTab() {
         </div>
 
         <div className="flex justify-end pt-2">
-          <Button type="submit" loading={save.isPending} data-testid="settings-company-submit">{t('common.save')}</Button>
+          <Button type="submit" disabled={save.isPending} data-testid="settings-company-submit">{t('common.save')}</Button>
         </div>
       </form>
     </Card>
@@ -222,21 +223,21 @@ function AccountTab() {
 
   return (
     <div className="space-y-5">
-      <Card className="p-6">
-        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">{t('settings.emailSection')}</h2>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 mb-5">{t('settings.emailDescription')}</p>
-        <form onSubmit={(e) => { e.preventDefault(); updateEmail.mutate(); }} className="space-y-4">
-          <Input label={t('settings.newEmail')} type="email" value={emailForm.email} onChange={(e) => setEmailForm({ ...emailForm, email: e.target.value })} required />
-          <Input label={t('settings.currentPassword')} type="password" value={emailForm.currentPassword} onChange={(e) => setEmailForm({ ...emailForm, currentPassword: e.target.value })} required />
+      <Card className="p-5">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('settings.emailSection')}</p>
+        <p className="mt-1 text-sm text-muted-foreground">{t('settings.emailDescription')}</p>
+        <form onSubmit={(e) => { e.preventDefault(); updateEmail.mutate(); }} className="mt-5 space-y-4">
+          <Field id="settings-new-email" label={t('settings.newEmail')} type="email" value={emailForm.email} onChange={(e) => setEmailForm({ ...emailForm, email: e.target.value })} required />
+          <Field id="settings-email-current-password" label={t('settings.currentPassword')} type="password" value={emailForm.currentPassword} onChange={(e) => setEmailForm({ ...emailForm, currentPassword: e.target.value })} required />
           <div className="flex justify-end">
-            <Button type="submit" loading={updateEmail.isPending}>{t('settings.changeEmail')}</Button>
+            <Button type="submit" disabled={updateEmail.isPending}>{t('settings.changeEmail')}</Button>
           </div>
         </form>
       </Card>
 
-      <Card className="p-6">
-        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">{t('settings.passwordSection')}</h2>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 mb-5">{t('settings.passwordDescription')}</p>
+      <Card className="p-5">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('settings.passwordSection')}</p>
+        <p className="mt-1 text-sm text-muted-foreground">{t('settings.passwordDescription')}</p>
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -246,15 +247,15 @@ function AccountTab() {
             }
             updatePassword.mutate();
           }}
-          className="space-y-4"
+          className="mt-5 space-y-4"
         >
-          <Input label={t('settings.currentPassword')} type="password" value={pwForm.currentPassword} onChange={(e) => setPwForm({ ...pwForm, currentPassword: e.target.value })} required />
+          <Field id="settings-current-password" label={t('settings.currentPassword')} type="password" value={pwForm.currentPassword} onChange={(e) => setPwForm({ ...pwForm, currentPassword: e.target.value })} required />
           <div className="grid gap-4 sm:grid-cols-2">
-            <Input label={t('settings.newPassword')} type="password" value={pwForm.newPassword} onChange={(e) => setPwForm({ ...pwForm, newPassword: e.target.value })} minLength={8} required />
-            <Input label={t('settings.confirmPassword')} type="password" value={pwForm.confirm} onChange={(e) => setPwForm({ ...pwForm, confirm: e.target.value })} minLength={8} required />
+            <Field id="settings-new-password" label={t('settings.newPassword')} type="password" value={pwForm.newPassword} onChange={(e) => setPwForm({ ...pwForm, newPassword: e.target.value })} minLength={8} required />
+            <Field id="settings-confirm-password" label={t('settings.confirmPassword')} type="password" value={pwForm.confirm} onChange={(e) => setPwForm({ ...pwForm, confirm: e.target.value })} minLength={8} required />
           </div>
           <div className="flex justify-end">
-            <Button type="submit" loading={updatePassword.isPending}>{t('settings.changePassword')}</Button>
+            <Button type="submit" disabled={updatePassword.isPending}>{t('settings.changePassword')}</Button>
           </div>
         </form>
       </Card>

@@ -4,16 +4,21 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Plus, Trash2 } from 'lucide-react';
 import { clientsApi, productsApi, invoicesApi, meApi } from '../lib/api';
-import { Card } from '../components/ui/CardLegacy';
-import { Button } from '../components/ui/ButtonLegacy';
-import { Input } from '../components/ui/InputLegacy';
-import { Select } from '../components/ui/SelectLegacy';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { PageHeader } from '@/components/common/PageHeader';
+import { Spinner } from '@/components/common/Spinner';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { calculateInvoiceTotals } from '../lib/invoiceMath';
 import { todayLocal, dateOnlyToIso } from '../lib/utils';
 import type { CreateInvoiceItem, DiscountType } from '../types';
 
 const DRAFT_KEY = 'billflow_new_invoice_draft';
+
+const selectClass = 'flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm text-foreground shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50';
 
 interface ItemRow extends CreateInvoiceItem {
   _key: number;
@@ -202,102 +207,140 @@ export default function NewInvoicePage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{t('newInvoice.title')}</h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400">{t('newInvoice.subtitle')}</p>
-      </div>
+    <div className="space-y-5">
+      <PageHeader
+        title={t('newInvoice.title')}
+        subtitle={t('newInvoice.subtitle')}
+        actions={
+          <>
+            <Button type="button" variant="outline" onClick={() => navigate('/invoices')}>
+              {t('common.cancel')}
+            </Button>
+            <Button type="submit" form="new-invoice-form" disabled={createMutation.isPending}>
+              {createMutation.isPending && <Spinner className="h-4 w-4 border-current border-t-transparent" />}
+              {t('newInvoice.create')}
+            </Button>
+          </>
+        }
+      />
+
       {template && (
-        <p className="rounded-lg bg-blue-50 dark:bg-blue-950/40 px-3 py-2 text-sm text-blue-700 dark:text-blue-400">
+        <p className="rounded-lg border border-border bg-muted px-3 py-2 text-sm text-muted-foreground">
           {t('newInvoice.clonedFrom')}
         </p>
       )}
       {hasDraft && !template && (
-        <div className="flex items-center justify-between rounded-lg bg-amber-50 dark:bg-amber-950/40 px-3 py-2">
-          <p className="text-sm text-amber-700 dark:text-amber-400">{t('newInvoice.draftRestored')}</p>
-          <button onClick={discardDraft} className="ml-3 text-xs text-amber-600 hover:underline dark:text-amber-400">
+        <div className="flex items-center justify-between rounded-lg border border-border bg-muted px-3 py-2">
+          <p className="text-sm text-muted-foreground">{t('newInvoice.draftRestored')}</p>
+          <button type="button" onClick={discardDraft} className="ml-3 text-xs font-medium text-primary hover:underline">
             {t('newInvoice.discardDraft')}
           </button>
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-5">
-        <Card className="p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">{t('newInvoice.generalInfo')}</h2>
+      <form id="new-invoice-form" onSubmit={handleSubmit} className="space-y-5">
+        <Card className="space-y-4 p-5">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('newInvoice.generalInfo')}</h2>
           <div className="grid gap-4 sm:grid-cols-3">
-            <Select label={t('newInvoice.client')} value={clientId} onChange={(e) => setClientId(e.target.value)} required>
-              <option value="">{t('newInvoice.selectClient')}</option>
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </Select>
-            <Input label={t('newInvoice.issueDate')} type="date" value={dateIssued} onChange={(e) => setDateIssued(e.target.value)} required />
-            <Input label={t('newInvoice.dueDate')} type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} required />
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="invoice-client">{t('newInvoice.client')}</Label>
+              <select
+                id="invoice-client"
+                value={clientId}
+                onChange={(e) => setClientId(e.target.value)}
+                required
+                className={selectClass}
+              >
+                <option value="">{t('newInvoice.selectClient')}</option>
+                {clients.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="invoice-date-issued">{t('newInvoice.issueDate')}</Label>
+              <Input id="invoice-date-issued" type="date" value={dateIssued} onChange={(e) => setDateIssued(e.target.value)} required />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="invoice-due-date">{t('newInvoice.dueDate')}</Label>
+              <Input id="invoice-due-date" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} required />
+            </div>
           </div>
         </Card>
 
-        <Card className="p-5 space-y-4">
+        <Card className="space-y-4 p-5">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">{t('newInvoice.items')}</h2>
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('newInvoice.items')}</h2>
             <Button type="button" variant="secondary" size="sm" onClick={() => setItems((p) => [...p, newRow()])}>
               <Plus className="h-3.5 w-3.5" /> {t('newInvoice.addItem')}
             </Button>
           </div>
 
-          <div className="space-y-4">
+          <div>
             {items.map((item) => (
-              <div key={item._key} className="rounded-lg border border-slate-100 dark:border-slate-800 p-3 sm:border-0 sm:p-0">
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-12 sm:items-end">
-                  <div className="col-span-2 sm:col-span-3">
-                    <Select
-                      label={t('newInvoice.product')}
+              <div key={item._key} className="border-b border-border py-4 first:pt-0 last:border-b-0 last:pb-0">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-12 sm:items-end">
+                  <div className="col-span-2 flex flex-col gap-1.5 sm:col-span-3">
+                    <Label htmlFor={`invoice-item-product-${item._key}`}>{t('newInvoice.product')}</Label>
+                    <select
+                      id={`invoice-item-product-${item._key}`}
                       value={item.productId?.toString() ?? ''}
                       onChange={(e) => selectProduct(item._key, e.target.value)}
+                      className={selectClass}
                     >
                       <option value="">{t('newInvoice.freeItem')}</option>
                       {products.map((p) => (
                         <option key={p.id} value={p.id}>{p.name}</option>
                       ))}
-                    </Select>
+                    </select>
                   </div>
-                  <div className="col-span-2 sm:col-span-4">
+                  <div className="col-span-2 flex flex-col gap-1.5 sm:col-span-4">
+                    <Label htmlFor={`invoice-item-description-${item._key}`}>{t('common.description')}</Label>
                     <Input
-                      label={t('common.description')}
+                      id={`invoice-item-description-${item._key}`}
                       value={item.description}
                       onChange={(e) => updateItem(item._key, 'description', e.target.value)}
                       placeholder={t('newInvoice.descPlaceholder')}
                       required
                     />
                   </div>
-                  <div className="col-span-1 sm:col-span-2">
+                  <div className="col-span-1 flex flex-col gap-1.5 sm:col-span-1">
+                    <Label htmlFor={`invoice-item-quantity-${item._key}`}>{t('common.qty')}</Label>
                     <Input
-                      label={t('common.qty')}
+                      id={`invoice-item-quantity-${item._key}`}
                       type="number"
                       min="1"
                       value={item.quantity}
                       onChange={(e) => updateItem(item._key, 'quantity', parseInt(e.target.value) || 1)}
+                      className="font-mono tabular-nums"
                     />
                   </div>
-                  <div className="col-span-1 sm:col-span-2">
+                  <div className="col-span-1 flex flex-col gap-1.5 sm:col-span-2">
+                    <Label htmlFor={`invoice-item-price-${item._key}`}>{t('products.price')}</Label>
                     <Input
-                      label={t('products.price')}
+                      id={`invoice-item-price-${item._key}`}
                       type="number"
                       min="0"
                       step="0.01"
                       value={item.price || ''}
                       onChange={(e) => updateItem(item._key, 'price', parseFloat(e.target.value) || 0)}
+                      className="font-mono tabular-nums"
                     />
                   </div>
-                  <div className="col-span-2 flex justify-end sm:col-span-1 pb-0.5">
+                  <div className="col-span-1 flex h-9 items-center justify-end font-mono text-sm tabular-nums text-foreground sm:col-span-1">
+                    {formatAmount(item.quantity * item.price)}
+                  </div>
+                  <div className="col-span-1 flex items-center justify-end sm:col-span-1">
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="text-red-500 hover:text-red-600"
+                      className="text-muted-foreground hover:text-destructive"
+                      aria-label={t('common.delete')}
                       onClick={() => setItems((p) => p.filter((i) => i._key !== item._key))}
                       disabled={items.length === 1}
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
@@ -306,78 +349,91 @@ export default function NewInvoicePage() {
           </div>
         </Card>
 
-        <Card className="p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">{t('newInvoice.discountTax')}</h2>
+        <Card className="space-y-4 p-5">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('newInvoice.discountTax')}</h2>
           <div className="grid gap-4 sm:grid-cols-3">
-            <Select label={t('newInvoice.discountType')} value={discountType} onChange={(e) => setDiscountType(e.target.value as DiscountType)}>
-              <option value="NONE">{t('newInvoice.noDiscount')}</option>
-              <option value="PERCENT">{t('newInvoice.percentDiscount')}</option>
-              <option value="FIXED">{t('newInvoice.fixedDiscount')}</option>
-            </Select>
-            <Input
-              label={t('newInvoice.discountValue')}
-              type="number"
-              min="0"
-              step="0.01"
-              value={discountValue || ''}
-              disabled={discountType === 'NONE'}
-              onChange={(e) => setDiscountValue(parseFloat(e.target.value) || 0)}
-            />
-            <Input
-              label={t('newInvoice.taxRate')}
-              type="number"
-              min="0"
-              max="100"
-              step="0.01"
-              value={taxRate || ''}
-              onChange={(e) => setTaxRate(parseFloat(e.target.value) || 0)}
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="invoice-discount-type">{t('newInvoice.discountType')}</Label>
+              <select
+                id="invoice-discount-type"
+                value={discountType}
+                onChange={(e) => setDiscountType(e.target.value as DiscountType)}
+                className={selectClass}
+              >
+                <option value="NONE">{t('newInvoice.noDiscount')}</option>
+                <option value="PERCENT">{t('newInvoice.percentDiscount')}</option>
+                <option value="FIXED">{t('newInvoice.fixedDiscount')}</option>
+              </select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="invoice-discount-value">{t('newInvoice.discountValue')}</Label>
+              <Input
+                id="invoice-discount-value"
+                type="number"
+                min="0"
+                step="0.01"
+                value={discountValue || ''}
+                disabled={discountType === 'NONE'}
+                onChange={(e) => setDiscountValue(parseFloat(e.target.value) || 0)}
+                className="font-mono tabular-nums"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="invoice-tax-rate">{t('newInvoice.taxRate')}</Label>
+              <Input
+                id="invoice-tax-rate"
+                type="number"
+                min="0"
+                max="100"
+                step="0.01"
+                value={taxRate || ''}
+                onChange={(e) => setTaxRate(parseFloat(e.target.value) || 0)}
+                className="font-mono tabular-nums"
+              />
+            </div>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="invoice-notes">{t('newInvoice.notesOptional')}</Label>
+            <Textarea
+              id="invoice-notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder={t('newInvoice.notesPlaceholder')}
+              rows={3}
             />
           </div>
-          <Input
-            label={t('newInvoice.notesOptional')}
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder={t('newInvoice.notesPlaceholder')}
-          />
         </Card>
 
         <Card className="p-5">
-          <dl className="space-y-1.5 text-sm">
-            <div className="flex justify-between">
-              <dt className="text-slate-500 dark:text-slate-400">{t('common.subtotal')}</dt>
-              <dd className="text-slate-700 dark:text-slate-300">{formatAmount(totals.subtotal)}</dd>
+          <dl className="ml-auto max-w-sm space-y-1.5 text-sm">
+            <div className="flex items-center justify-between gap-6">
+              <dt className="text-muted-foreground">{t('common.subtotal')}</dt>
+              <dd className="font-mono tabular-nums text-foreground">{formatAmount(totals.subtotal)}</dd>
             </div>
             {totals.discountAmount > 0 && (
-              <div className="flex justify-between">
-                <dt className="text-slate-500 dark:text-slate-400">
+              <div className="flex items-center justify-between gap-6">
+                <dt className="text-muted-foreground">
                   {t('common.discount')}{discountType === 'PERCENT' ? ` (${discountValue}%)` : ''}
                 </dt>
-                <dd className="text-slate-700 dark:text-slate-300">-{formatAmount(totals.discountAmount)}</dd>
+                <dd className="font-mono tabular-nums text-foreground">-{formatAmount(totals.discountAmount)}</dd>
               </div>
             )}
             {totals.taxAmount > 0 && (
-              <div className="flex justify-between">
-                <dt className="text-slate-500 dark:text-slate-400">{t('common.tax')} ({taxRate}%)</dt>
-                <dd className="text-slate-700 dark:text-slate-300">{formatAmount(totals.taxAmount)}</dd>
+              <div className="flex items-center justify-between gap-6">
+                <dt className="text-muted-foreground">{t('common.tax')} ({taxRate}%)</dt>
+                <dd className="font-mono tabular-nums text-foreground">{formatAmount(totals.taxAmount)}</dd>
               </div>
             )}
-            <div className="flex justify-between border-t border-slate-200 dark:border-slate-800 pt-2 mt-2">
-              <dt className="font-semibold text-slate-900 dark:text-slate-100">{t('common.total')}</dt>
-              <dd className="text-xl font-bold text-slate-900 dark:text-slate-100">{formatAmount(totals.total)}</dd>
+            <div className="mt-2 flex items-baseline justify-between gap-6 border-t border-border pt-2">
+              <dt className="font-semibold text-foreground">{t('common.total')}</dt>
+              <dd className="font-display text-xl font-bold tabular-nums text-foreground">{formatAmount(totals.total)}</dd>
             </div>
           </dl>
         </Card>
 
-        {error && <p className="rounded-lg bg-red-50 dark:bg-red-950/40 px-3 py-2 text-sm text-red-600">{error}</p>}
-
-        <div className="flex justify-end gap-3">
-          <Button type="button" variant="secondary" onClick={() => navigate('/invoices')}>
-            {t('common.cancel')}
-          </Button>
-          <Button type="submit" loading={createMutation.isPending}>
-            {t('newInvoice.create')}
-          </Button>
-        </div>
+        {error && (
+          <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
+        )}
       </form>
     </div>
   );

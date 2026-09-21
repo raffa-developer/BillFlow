@@ -70,7 +70,7 @@
   --popover-foreground: #424242;
   --primary: #00796b;
   --primary-foreground: #ffffff;
-  --secondary: #607d8b;
+  --secondary: #546e7a;
   --secondary-foreground: #ffffff;
   --muted: #e3e3e3;
   --muted-foreground: #6b6b6b;
@@ -160,4 +160,25 @@ html {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--muted-foreground);
+}
+
+@keyframes nav-item-in {
+  from {
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.nav-item-in {
+  animation: nav-item-in 320ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-item-in {
+    animation: none;
+  }
 }

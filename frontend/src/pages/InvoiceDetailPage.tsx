@@ -1,19 +1,25 @@
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, CheckCircle, Clock, AlertCircle, Trash2, Download, Send, Copy, CopyPlus, Bell } from 'lucide-react';
+import { ArrowLeft, CheckCircle, Clock, AlertCircle, Trash2, Download, Send, Copy, CopyPlus, Bell, FileText } from 'lucide-react';
 import { invoicesApi } from '../lib/api';
-import { Card } from '../components/ui/CardLegacy';
-import { Button } from '../components/ui/ButtonLegacy';
-import { Input } from '../components/ui/InputLegacy';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { StatusBadge } from '../components/ui/BadgeLegacy';
-import { Modal } from '../components/ui/ModalLegacy';
+import { Modal } from '@/components/common/Modal';
+import { EmptyState } from '@/components/common/EmptyState';
+import { LoadingState, Spinner } from '@/components/common/Spinner';
 import { formatDate, todayLocal, dateOnlyToIso } from '../lib/utils';
 import { discountAmountFor } from '../lib/invoiceMath';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useState } from 'react';
 import { useToast } from '../contexts/ToastContext';
 import type { InvoiceStatus } from '../types';
+
+const selectClass = 'flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm text-foreground shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50';
 
 export default function InvoiceDetailPage() {
   const { t } = useTranslation();
@@ -179,15 +185,9 @@ export default function InvoiceDetailPage() {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-center py-20">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
-      </div>
-    );
-  }
+  if (isLoading) return <LoadingState />;
 
-  if (!invoice) return <div className="text-center py-20 text-slate-400 dark:text-slate-500">{t('invoiceDetail.notFound')}</div>;
+  if (!invoice) return <EmptyState icon={FileText} title={t('invoiceDetail.notFound')} />;
 
   const subtotal = parseFloat(invoice.subtotal);
   const discountValue = parseFloat(invoice.discountValue);
@@ -198,57 +198,59 @@ export default function InvoiceDetailPage() {
   const outstanding = Math.max(0, Math.round((parseFloat(invoice.total) - paidAmount) * 100) / 100);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <Link to="/invoices">
-          <Button variant="ghost" size="sm"><ArrowLeft className="h-4 w-4" /> {t('invoiceDetail.back')}</Button>
-        </Link>
+    <div className="space-y-5">
+      <div>
+        <Button variant="ghost" size="sm" asChild>
+          <Link to="/invoices"><ArrowLeft className="h-4 w-4" /> {t('invoiceDetail.back')}</Link>
+        </Button>
       </div>
 
-      <div className="flex items-start justify-between flex-wrap gap-4">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{invoice.number}</h1>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="font-mono text-2xl font-bold tracking-tight text-foreground">{invoice.number}</h1>
             <StatusBadge status={invoice.status} />
           </div>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+          <p className="mt-0.5 text-sm text-muted-foreground">
             {t('invoiceDetail.issuedOn')} {formatDate(invoice.dateIssued)} · {t('invoiceDetail.dueOn')} {formatDate(invoice.dueDate)}
           </p>
         </div>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           {invoice.status !== 'PAID' && outstanding > 0 && (
-            <Button variant="secondary" size="sm" onClick={() => { setPaymentAmount(String(outstanding)); setPaymentDate(todayLocal()); setPaymentOpen(true); }}>
-              <CheckCircle className="h-4 w-4 text-green-600" /> {t('invoiceDetail.markPaid')}
+            <Button variant="outline" size="sm" onClick={() => { setPaymentAmount(String(outstanding)); setPaymentDate(todayLocal()); setPaymentOpen(true); }}>
+              <CheckCircle className="h-4 w-4" /> {t('invoiceDetail.markPaid')}
             </Button>
           )}
           {invoice.status !== 'PENDING' && (
-            <Button variant="secondary" size="sm" onClick={() => statusMutation.mutate('PENDING')} loading={statusMutation.isPending}>
-              <Clock className="h-4 w-4 text-yellow-500" /> {t('invoiceDetail.markPending')}
+            <Button variant="outline" size="sm" onClick={() => statusMutation.mutate('PENDING')} disabled={statusMutation.isPending}>
+              {statusMutation.isPending && <Spinner className="h-4 w-4 border-current border-t-transparent" />}
+              <Clock className="h-4 w-4" /> {t('invoiceDetail.markPending')}
             </Button>
           )}
           {invoice.status !== 'OVERDUE' && (
-            <Button variant="secondary" size="sm" onClick={() => statusMutation.mutate('OVERDUE')} loading={statusMutation.isPending}>
-              <AlertCircle className="h-4 w-4 text-red-500" /> {t('invoiceDetail.markOverdue')}
+            <Button variant="outline" size="sm" onClick={() => statusMutation.mutate('OVERDUE')} disabled={statusMutation.isPending}>
+              {statusMutation.isPending && <Spinner className="h-4 w-4 border-current border-t-transparent" />}
+              <AlertCircle className="h-4 w-4" /> {t('invoiceDetail.markOverdue')}
             </Button>
           )}
-          <Button variant="secondary" size="sm" onClick={downloadPdf}>
+          <Button variant="outline" size="sm" onClick={downloadPdf}>
             <Download className="h-4 w-4" /> {t('invoiceDetail.pdf')}
           </Button>
-          <Button variant="secondary" size="sm" onClick={() => setSendOpen(true)}>
+          <Button variant="outline" size="sm" onClick={() => setSendOpen(true)}>
             <Send className="h-4 w-4" /> {t('invoiceDetail.send')}
           </Button>
           {(invoice.status === 'PENDING' || invoice.status === 'OVERDUE') && (
-            <Button variant="secondary" size="sm" onClick={() => { setRemindTo(invoice.client.email ?? ''); setRemindOpen(true); }}>
+            <Button variant="outline" size="sm" onClick={() => { setRemindTo(invoice.client.email ?? ''); setRemindOpen(true); }}>
               <Bell className="h-4 w-4" /> {t('invoiceDetail.remind')}
             </Button>
           )}
-          <Button variant="secondary" size="sm" onClick={cloneInvoice}>
+          <Button variant="outline" size="sm" onClick={cloneInvoice}>
             <CopyPlus className="h-4 w-4" /> {t('invoiceDetail.clone')}
           </Button>
-          <Button variant="ghost" size="sm" onClick={copyPublicLink}>
+          <Button variant="ghost" size="sm" aria-label={t('invoiceDetail.copyPublicLink')} onClick={copyPublicLink}>
             <Copy className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-600" onClick={() => setDeleteOpen(true)}>
+          <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive" aria-label={t('common.delete')} onClick={() => setDeleteOpen(true)}>
             <Trash2 className="h-4 w-4" />
           </Button>
         </div>
@@ -256,62 +258,67 @@ export default function InvoiceDetailPage() {
 
       <div className="grid gap-5 sm:grid-cols-2">
         <Card className="p-5">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">{t('invoiceDetail.client')}</p>
-          <p className="font-semibold text-slate-800 dark:text-slate-200">{invoice.client.name}</p>
-          {invoice.client.email && <p className="text-sm text-slate-400 dark:text-slate-500">{invoice.client.email}</p>}
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('invoiceDetail.client')}</p>
+          <p className="mt-2 font-semibold text-card-foreground">{invoice.client.name}</p>
+          {invoice.client.email && <p className="mt-0.5 text-sm text-muted-foreground">{invoice.client.email}</p>}
         </Card>
         <Card className="p-5">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">{t('invoiceDetail.summary')}</p>
-          <div className="space-y-1 text-sm">
-            <div className="flex justify-between text-slate-600 dark:text-slate-400">
-              <span>{t('common.subtotal')}</span><span>{formatAmount(subtotal)}</span>
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('invoiceDetail.summary')}</p>
+          <dl className="mt-2 space-y-1.5 text-sm">
+            <div className="flex items-center justify-between gap-6 text-muted-foreground">
+              <dt>{t('common.subtotal')}</dt>
+              <dd className="font-mono tabular-nums">{formatAmount(subtotal)}</dd>
             </div>
             {discountAmount > 0 && (
-              <div className="flex justify-between text-slate-600 dark:text-slate-400">
-                <span>{t('common.discount')}{invoice.discountType === 'PERCENT' ? ` (${discountValue}%)` : ''}</span>
-                <span>-{formatAmount(discountAmount)}</span>
+              <div className="flex items-center justify-between gap-6 text-muted-foreground">
+                <dt>{t('common.discount')}{invoice.discountType === 'PERCENT' ? ` (${discountValue}%)` : ''}</dt>
+                <dd className="font-mono tabular-nums">-{formatAmount(discountAmount)}</dd>
               </div>
             )}
             {taxAmount > 0 && (
-              <div className="flex justify-between text-slate-600 dark:text-slate-400">
-                <span>{t('common.tax')} ({taxRate}%)</span><span>{formatAmount(taxAmount)}</span>
+              <div className="flex items-center justify-between gap-6 text-muted-foreground">
+                <dt>{t('common.tax')} ({taxRate}%)</dt>
+                <dd className="font-mono tabular-nums">{formatAmount(taxAmount)}</dd>
               </div>
             )}
-            <div className="flex justify-between font-semibold text-slate-900 dark:text-slate-100 border-t border-slate-200 dark:border-slate-800 pt-1 mt-1">
-              <span>{t('common.total')}</span><span className="text-blue-600">{formatAmount(invoice.total)}</span>
+            <div className="flex items-baseline justify-between gap-6 border-t border-border pt-2 font-display text-xl font-bold text-foreground">
+              <dt>{t('common.total')}</dt>
+              <dd className="font-mono tabular-nums">{formatAmount(invoice.total)}</dd>
             </div>
-          </div>
+          </dl>
         </Card>
       </div>
 
       {invoice.notes && (
         <Card className="p-5">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">{t('common.notes')}</p>
-          <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap">{invoice.notes}</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('common.notes')}</p>
+          <p className="mt-2 whitespace-pre-wrap text-sm text-card-foreground">{invoice.notes}</p>
         </Card>
       )}
 
-      <Card>
-        <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800">
-          <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">{t('invoiceDetail.items')}</h2>
+      <Card className="overflow-hidden">
+        <div className="border-b border-border px-5 py-4">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('invoiceDetail.items')}</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-100 dark:border-slate-800">
-                <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('common.description')}</th>
-                <th className="px-5 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('common.qty')}</th>
-                <th className="px-5 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('common.unitPrice')}</th>
-                <th className="px-5 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('common.total')}</th>
+              <tr className="border-b border-border">
+                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('common.description')}</th>
+                <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('common.qty')}</th>
+                <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('common.unitPrice')}</th>
+                <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('common.total')}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            <tbody>
               {invoice.items.map((item) => (
-                <tr key={item.id}>
-                  <td className="px-5 py-3.5 text-slate-800 dark:text-slate-200">{item.description}</td>
-                  <td className="px-5 py-3.5 text-right text-slate-500 dark:text-slate-400">{item.quantity}</td>
-                  <td className="px-5 py-3.5 text-right text-slate-500 dark:text-slate-400">{formatAmount(item.price)}</td>
-                  <td className="px-5 py-3.5 text-right font-medium text-slate-700 dark:text-slate-300">{formatAmount(parseFloat(item.price) * item.quantity)}</td>
+                <tr key={item.id} className="border-b border-border last:border-b-0">
+                  <td className="px-5 py-3.5 text-card-foreground">{item.description}</td>
+                  <td className="px-5 py-3.5 text-right font-mono tabular-nums text-muted-foreground">{item.quantity}</td>
+                  <td className="px-5 py-3.5 text-right font-mono tabular-nums text-muted-foreground">{formatAmount(item.price)}</td>
+                  <td className="px-5 py-3.5 text-right font-mono font-medium tabular-nums text-card-foreground">
+                    {formatAmount(parseFloat(item.price) * item.quantity)}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -320,89 +327,116 @@ export default function InvoiceDetailPage() {
       </Card>
 
       {payments.length > 0 && (
-        <Card>
-          <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800">
-            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">{t('invoiceDetail.paymentHistory')}</h2>
+        <Card className="overflow-hidden">
+          <div className="border-b border-border px-5 py-4">
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('invoiceDetail.paymentHistory')}</h2>
           </div>
-          <div className="divide-y divide-slate-100 dark:divide-slate-800">
+          <div>
             {payments.map((p) => (
-              <div key={p.id} className="flex items-center justify-between px-5 py-3">
-                <div>
-                  <p className="text-sm font-medium text-slate-700 dark:text-slate-300 capitalize">{p.method.replace('_', ' ')}</p>
-                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
+              <div key={p.id} className="flex items-center justify-between gap-4 border-b border-border px-5 py-3 last:border-b-0">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium capitalize text-card-foreground">{p.method.replace('_', ' ')}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
                     {formatDate(p.paidAt)}{p.reference && ` · ${p.reference}`}
                   </p>
                 </div>
-                <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">{formatAmount(p.amount)}</span>
+                <span className="shrink-0 font-mono text-sm font-semibold tabular-nums text-accent-foreground dark:text-accent">
+                  {formatAmount(p.amount)}
+                </span>
               </div>
             ))}
           </div>
         </Card>
       )}
 
-      <Modal open={deleteOpen} onClose={() => setDeleteOpen(false)} title={t('invoiceDetail.deleteTitle')}>
-        <p className="text-sm text-slate-600 dark:text-slate-400 mb-5">{t('invoiceDetail.deleteConfirm')}</p>
+      <Modal
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        title={t('invoiceDetail.deleteTitle')}
+        description={t('invoiceDetail.deleteConfirm')}
+      >
         <div className="flex justify-end gap-2">
-          <Button variant="secondary" onClick={() => setDeleteOpen(false)}>{t('common.cancel')}</Button>
-          <Button variant="danger" loading={deleteMutation.isPending} onClick={() => deleteMutation.mutate()}>{t('common.delete')}</Button>
+          <Button variant="outline" onClick={() => setDeleteOpen(false)}>{t('common.cancel')}</Button>
+          <Button variant="destructive" disabled={deleteMutation.isPending} onClick={() => deleteMutation.mutate()}>
+            {deleteMutation.isPending && <Spinner className="h-4 w-4 border-current border-t-transparent" />}
+            {t('common.delete')}
+          </Button>
         </div>
       </Modal>
 
-      <Modal open={sendOpen} onClose={() => setSendOpen(false)} title={t('invoiceDetail.sendTitle')}>
+      <Modal
+        open={sendOpen}
+        onClose={() => setSendOpen(false)}
+        title={t('invoiceDetail.sendTitle')}
+        description={t('invoiceDetail.sendDescription')}
+      >
         <div className="space-y-4">
-          <p className="text-sm text-slate-500 dark:text-slate-400">{t('invoiceDetail.sendDescription')}</p>
-          <Input
-            label={t('invoiceDetail.recipientEmail')}
-            type="email"
-            value={sendTo}
-            onChange={(e) => setSendTo(e.target.value)}
-            placeholder={invoice.client.email ?? 'email@example.com'}
-          />
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-              {t('invoiceDetail.messageOptional')}
-            </label>
-            <textarea
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="invoice-send-to">{t('invoiceDetail.recipientEmail')}</Label>
+            <Input
+              id="invoice-send-to"
+              type="email"
+              value={sendTo}
+              onChange={(e) => setSendTo(e.target.value)}
+              placeholder={invoice.client.email ?? 'email@example.com'}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="invoice-send-message">{t('invoiceDetail.messageOptional')}</Label>
+            <Textarea
+              id="invoice-send-message"
               value={sendMessage}
               onChange={(e) => setSendMessage(e.target.value)}
               placeholder={t('invoiceDetail.messagePlaceholder')}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500"
               rows={3}
             />
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="secondary" onClick={() => setSendOpen(false)}>{t('common.cancel')}</Button>
-            <Button loading={sendMutation.isPending} onClick={() => sendMutation.mutate()}>
+            <Button variant="outline" onClick={() => setSendOpen(false)}>{t('common.cancel')}</Button>
+            <Button disabled={sendMutation.isPending} onClick={() => sendMutation.mutate()}>
+              {sendMutation.isPending && <Spinner className="h-4 w-4 border-current border-t-transparent" />}
               <Send className="h-4 w-4" /> {t('invoiceDetail.sendEmail')}
             </Button>
           </div>
         </div>
       </Modal>
 
-      <Modal open={paymentOpen} onClose={() => setPaymentOpen(false)} title={t('invoiceDetail.recordPaymentTitle')}>
+      <Modal
+        open={paymentOpen}
+        onClose={() => setPaymentOpen(false)}
+        title={t('invoiceDetail.recordPaymentTitle')}
+      >
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            <Input
-              label={t('invoiceDetail.paymentAmount')}
-              type="number"
-              min="0.01"
-              step="0.01"
-              value={paymentAmount}
-              onChange={(e) => setPaymentAmount(e.target.value)}
-            />
-            <Input
-              label={t('invoiceDetail.paymentDate')}
-              type="date"
-              value={paymentDate}
-              onChange={(e) => setPaymentDate(e.target.value)}
-            />
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="invoice-payment-amount">{t('invoiceDetail.paymentAmount')}</Label>
+              <Input
+                id="invoice-payment-amount"
+                type="number"
+                min="0.01"
+                step="0.01"
+                value={paymentAmount}
+                onChange={(e) => setPaymentAmount(e.target.value)}
+                className="font-mono tabular-nums"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="invoice-payment-date">{t('invoiceDetail.paymentDate')}</Label>
+              <Input
+                id="invoice-payment-date"
+                type="date"
+                value={paymentDate}
+                onChange={(e) => setPaymentDate(e.target.value)}
+              />
+            </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('invoiceDetail.paymentMethod')}</label>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="invoice-payment-method">{t('invoiceDetail.paymentMethod')}</Label>
             <select
+              id="invoice-payment-method"
               value={paymentMethod}
               onChange={(e) => setPaymentMethod(e.target.value)}
-              className="h-9 w-full rounded-lg border border-slate-300 px-3 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              className={selectClass}
             >
               <option value="bank_transfer">{t('invoiceDetail.paymentMethodBankTransfer')}</option>
               <option value="cash">{t('invoiceDetail.paymentMethodCash')}</option>
@@ -411,34 +445,46 @@ export default function InvoiceDetailPage() {
               <option value="other">{t('invoiceDetail.paymentMethodOther')}</option>
             </select>
           </div>
-          <Input
-            label={t('invoiceDetail.paymentRef')}
-            value={paymentRef}
-            onChange={(e) => setPaymentRef(e.target.value)}
-            placeholder={t('invoiceDetail.paymentRefPlaceholder')}
-          />
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="invoice-payment-ref">{t('invoiceDetail.paymentRef')}</Label>
+            <Input
+              id="invoice-payment-ref"
+              value={paymentRef}
+              onChange={(e) => setPaymentRef(e.target.value)}
+              placeholder={t('invoiceDetail.paymentRefPlaceholder')}
+            />
+          </div>
           <div className="flex justify-end gap-2">
-            <Button variant="secondary" onClick={() => setPaymentOpen(false)}>{t('common.cancel')}</Button>
-            <Button loading={paymentMutation.isPending} onClick={() => paymentMutation.mutate()}>
+            <Button variant="outline" onClick={() => setPaymentOpen(false)}>{t('common.cancel')}</Button>
+            <Button disabled={paymentMutation.isPending} onClick={() => paymentMutation.mutate()}>
+              {paymentMutation.isPending && <Spinner className="h-4 w-4 border-current border-t-transparent" />}
               <CheckCircle className="h-4 w-4" /> {t('invoiceDetail.recordPayment')}
             </Button>
           </div>
         </div>
       </Modal>
 
-      <Modal open={remindOpen} onClose={() => setRemindOpen(false)} title={t('invoiceDetail.remindTitle')}>
+      <Modal
+        open={remindOpen}
+        onClose={() => setRemindOpen(false)}
+        title={t('invoiceDetail.remindTitle')}
+        description={t('invoiceDetail.remindDescription')}
+      >
         <div className="space-y-4">
-          <p className="text-sm text-slate-500 dark:text-slate-400">{t('invoiceDetail.remindDescription')}</p>
-          <Input
-            label={t('invoiceDetail.recipientEmail')}
-            type="email"
-            value={remindTo}
-            onChange={(e) => setRemindTo(e.target.value)}
-            placeholder={invoice.client.email ?? 'email@example.com'}
-          />
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="invoice-remind-to">{t('invoiceDetail.recipientEmail')}</Label>
+            <Input
+              id="invoice-remind-to"
+              type="email"
+              value={remindTo}
+              onChange={(e) => setRemindTo(e.target.value)}
+              placeholder={invoice.client.email ?? 'email@example.com'}
+            />
+          </div>
           <div className="flex justify-end gap-2">
-            <Button variant="secondary" onClick={() => setRemindOpen(false)}>{t('common.cancel')}</Button>
-            <Button loading={remindLoading} onClick={sendReminder}>
+            <Button variant="outline" onClick={() => setRemindOpen(false)}>{t('common.cancel')}</Button>
+            <Button disabled={remindLoading} onClick={sendReminder}>
+              {remindLoading && <Spinner className="h-4 w-4 border-current border-t-transparent" />}
               <Bell className="h-4 w-4" /> {t('invoiceDetail.sendReminder')}
             </Button>
           </div>

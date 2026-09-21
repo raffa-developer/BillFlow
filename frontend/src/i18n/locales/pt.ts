@@ -59,6 +59,7 @@ const pt: Translations = {
     filters: 'Filtros',
     clearAllFilters: 'Limpar todos os filtros',
     clearFilters: 'Limpar filtros',
+    loading: 'A carregar…',
   },
   dashboard: {
     title: 'Dashboard',
@@ -215,6 +216,7 @@ const pt: Translations = {
     errorSend: 'Erro ao enviar email.',
     remind: 'Lembrete',
     clone: 'Duplicar',
+    copyPublicLink: 'Copiar link público',
     remindTitle: 'Enviar lembrete de pagamento',
     remindDescription: 'Um email de lembrete será enviado ao cliente com os detalhes da fatura.',
     sendReminder: 'Enviar lembrete',
