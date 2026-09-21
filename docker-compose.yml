@@ -1,0 +1,44 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: billflow-pg
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: billing
+    ports:
+      - "5432:5432"
+    volumes:
+      - billflow-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d billing"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    build: ./backend
+    container_name: billflow-api
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/billing
+      JWT_SECRET: billflow-super-secret-jwt-key-2026
+      JWT_EXPIRES_IN: 60m
+      BCRYPT_SALT_ROUNDS: "10"
+      PORT: "4000"
+      APP_URL: http://localhost:5173
+    ports:
+      - "4000:4000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    container_name: billflow-web
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+
+volumes:
+  billflow-pgdata:

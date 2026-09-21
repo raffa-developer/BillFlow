@@ -19,6 +19,10 @@ Full-stack invoicing app. Two independent npm packages — **no workspaces, no r
 | frontend | `npm run lint` | ESLint; only linter in the repo |
 | frontend | `node scripts/ui-verify.mjs [--screens] [--axe]` | Playwright UI checks; both dev servers must be running |
 | root | `node test-app.mjs` | Requires **both dev servers already running** and one-time `npx playwright install chromium`. Prints pass/fail summary; exits 0 regardless. |
+| root | `docker compose up -d --build` | Full stack in containers: `billflow-pg` (Postgres 16), `billflow-api` (:4000), `billflow-web` (nginx, :5173). `frontend/nginx.conf` proxies `/api` to the backend and handles SPA fallback. |
+| root | `docker compose run --rm backend node scripts/db-setup.mjs` | Fresh container DB init; follow with `node scripts/migrate-base-values.mjs`, then `node scripts/seed.mjs` (also available as the `db:*` npm scripts). |
+
+Docker notes: the local dev servers must be stopped before `docker compose up` (same ports). The old local Postgres container `billflow-db` is kept stopped as a data backup; the compose stack uses its own `billflow-pgdata` volume. Builds need free disk space on C: — Docker's build cache lives there.
 
 ## Database (biggest gotcha)
 
