@@ -77,7 +77,7 @@ const en = {
     paidRate: 'Paid rate',
     noPayments: 'No payments recorded yet.',
     noInvoices: 'No invoices yet.',
-    createFirst: 'Create first invoice',
+    createFirst: 'Create your first invoice',
   },
   clients: {
     title: 'Clients',
@@ -151,7 +151,7 @@ const en = {
     filterOverdue: 'Overdue',
     colClient: 'Client',
     colIssued: 'Issued',
-    colDue: 'Due date',
+    colDue: 'Due',
     deleteTitle: 'Delete invoice',
     deleteConfirm: 'Are you sure? This action cannot be undone.',
     searchPlaceholder: 'Search by invoice #, client name or ID…',

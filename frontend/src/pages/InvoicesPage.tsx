@@ -4,8 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { Plus, FileText, Trash2, Search, X, SlidersHorizontal, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useLegacyTable, getCoreRowModel, getSortedRowModel, getFilteredRowModel } from '@tanstack/react-table/legacy';
-import type { LegacyColumnDef } from '@tanstack/react-table/legacy';
-import type { ColumnFiltersState, RowSelectionState, SortingState, Updater } from '@tanstack/react-table';
+import type { LegacyColumnDef, LegacyFeatures } from '@tanstack/react-table/legacy';
+import type { ColumnFiltersState, FilterFn, RowSelectionState, SortingState } from '@tanstack/react-table';
 import { invoicesApi } from '../lib/api';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,20 +19,29 @@ import type { Invoice } from '../types';
 type SortKey = 'date_desc' | 'date_asc' | 'due_asc' | 'due_desc' | 'total_desc' | 'total_asc' | 'number_asc';
 
 const STATUS_COLORS: Record<string, string> = {
-  '':        'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
-  'PENDING': 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
-  'PAID':    'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
-  'OVERDUE': 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+  '':        'bg-muted text-muted-foreground',
+  'PENDING': 'bg-[#FFB300]/25 text-[#805400] dark:bg-[#FFB300]/20 dark:text-[#ffd54f]',
+  'PAID':    'bg-accent text-accent-foreground',
+  'OVERDUE': 'bg-destructive/15 text-[#b3261e] dark:bg-destructive/20 dark:text-[#ef9a9a]',
 };
 
 const SORT_TO_STATE: Record<SortKey, SortingState> = {
   date_desc:  [{ id: 'issued', desc: true }],
   date_asc:   [{ id: 'issued', desc: false }],
-  due_asc:    [{ id: 'issued', desc: false }],
-  due_desc:   [{ id: 'issued', desc: true }],
+  due_asc:    [{ id: 'due', desc: false }],
+  due_desc:   [{ id: 'due', desc: true }],
   total_desc: [{ id: 'total', desc: true }],
   total_asc:  [{ id: 'total', desc: false }],
   number_asc: [{ id: 'number', desc: false }],
+};
+
+const globalFilterFn: FilterFn<LegacyFeatures, Invoice> = (row, _columnId, value) => {
+  const q = String(value ?? '').trim().toLowerCase();
+  if (!q) return true;
+  const inv = row.original;
+  return inv.number.toLowerCase().includes(q)
+    || inv.client.name.toLowerCase().includes(q)
+    || String(inv.id).includes(q);
 };
 
 const PAGE_SIZE = 10;
@@ -124,7 +133,6 @@ export default function InvoicesPage() {
       id: 'issued',
       accessorFn: (i) => new Date(i.dateIssued).getTime(),
       header: t('invoices.colIssued'),
-      enableGlobalFilter: false,
       filterFn: (row) => {
         const issued = row.getValue<number>('issued');
         if (dateFrom && issued < new Date(dateFrom).getTime()) return false;
@@ -132,18 +140,17 @@ export default function InvoicesPage() {
         return true;
       },
     },
+    { id: 'due', accessorFn: (i) => new Date(i.dueDate).getTime(), header: t('invoices.colDue') },
     {
       id: 'status',
       accessorFn: (i) => i.status,
       header: t('invoices.colStatus'),
-      enableGlobalFilter: false,
       filterFn: (row, id, value) => row.getValue(id) === value,
     },
     {
       id: 'total',
       accessorFn: (i) => parseFloat(i.total),
       header: t('invoices.colTotal'),
-      enableGlobalFilter: false,
       filterFn: (row) => {
         const total = row.getValue<number>('total');
         if (minTotal && total < parseFloat(minTotal)) return false;
@@ -152,15 +159,6 @@ export default function InvoicesPage() {
       },
     },
   ], [t, dateFrom, dateTo, minTotal, maxTotal]);
-
-  const handleSortingChange = (updater: Updater<SortingState>) => {
-    const next = typeof updater === 'function' ? updater(sorting) : updater;
-    setSorting(next);
-    const first = next[0];
-    if (!first) return;
-    const key = (Object.entries(SORT_TO_STATE).find(([, s]) => s[0]?.id === first.id && s[0]?.desc === first.desc)?.[0] ?? 'date_desc') as SortKey;
-    setParam('sort', key);
-  };
 
   const table = useLegacyTable({
     data: all,
@@ -171,9 +169,9 @@ export default function InvoicesPage() {
       globalFilter: search,
       columnFilters,
     },
-    onSortingChange: handleSortingChange,
+    onSortingChange: setSorting,
     onRowSelectionChange: setRowSelection,
-    globalFilterFn: 'includesString',
+    globalFilterFn,
     getRowId: (row) => String(row.id),
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -186,11 +184,17 @@ export default function InvoicesPage() {
   const safePage = Math.min(page, totalPages);
   const rows = filteredRows.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
+  const isDateSort = sort === 'date_desc' || sort === 'date_asc';
   const grouped = new Map<string, typeof rows>();
-  for (const row of rows) {
-    const key = row.original.dateIssued.slice(0, 7); // yyyy-mm
-    grouped.set(key, [...(grouped.get(key) ?? []), row]);
+  if (isDateSort) {
+    for (const row of rows) {
+      const key = row.original.dateIssued.slice(0, 7); // yyyy-mm
+      grouped.set(key, [...(grouped.get(key) ?? []), row]);
+    }
   }
+  const sections: { key: string; group: string | null; rows: typeof rows }[] = isDateSort
+    ? [...grouped.entries()].map(([month, monthRows]) => ({ key: month, group: `invoice-group-${month}`, rows: monthRows }))
+    : [{ key: 'all', group: null, rows }];
 
   const allPageSelected = rows.length > 0 && rows.every((row) => row.getIsSelected());
   const somePageSelected = rows.some((row) => row.getIsSelected());
@@ -228,7 +232,7 @@ export default function InvoicesPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{t('invoices.title')}</h1>
+          <h1 className="font-display text-2xl font-bold tracking-tight text-foreground">{t('invoices.title')}</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
             {t('invoices.countFiltered', { filtered: filteredRows.length, total: all.length })}
           </p>
@@ -245,10 +249,10 @@ export default function InvoicesPage() {
             key={opt.value}
             onClick={() => setParam('status', opt.value)}
             className={cn(
-              'rounded-full px-3.5 py-1 text-xs font-semibold transition-all border',
+              'rounded-full px-3.5 py-1 text-xs font-semibold transition-colors border',
               statusFilter === opt.value
-                ? 'border-blue-600 bg-blue-600 text-white shadow-sm'
-                : `border-transparent ${STATUS_COLORS[opt.value]} hover:opacity-80`
+                ? 'border-primary bg-primary text-primary-foreground shadow-sm'
+                : `border-border ${STATUS_COLORS[opt.value]} hover:text-foreground`
             )}
           >
             {opt.label}
@@ -271,15 +275,15 @@ export default function InvoicesPage() {
       {/* Search + filter row */}
       <div className="flex gap-2">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
           <input
             value={search}
             onChange={e => setParam('q', e.target.value)}
             placeholder={t('invoices.searchPlaceholder')}
-            className="h-9 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-8 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500"
+            className="h-9 w-full rounded-lg border border-border bg-card pl-9 pr-8 text-sm text-foreground placeholder:text-muted-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
           {search && (
-            <button onClick={() => setParam('q', '')} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+            <button onClick={() => setParam('q', '')} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
               <X className="h-3.5 w-3.5" />
             </button>
           )}
@@ -290,14 +294,14 @@ export default function InvoicesPage() {
           className={cn(
             'flex items-center gap-1.5 rounded-lg border px-3 text-sm font-medium transition-colors h-9',
             showFilters || hasActiveFilters
-              ? 'border-blue-500 bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400'
-              : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400'
+              ? 'border-primary bg-primary/10 text-primary'
+              : 'border-border bg-card text-foreground hover:bg-muted'
           )}
         >
           <SlidersHorizontal className="h-3.5 w-3.5" />
           {t('common.filters')}
           {hasActiveFilters && (
-            <span className="flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">
+            <span className="flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
               {[search, statusFilter, dateFrom, dateTo, minTotal, maxTotal].filter(Boolean).length}
             </span>
           )}
@@ -307,7 +311,7 @@ export default function InvoicesPage() {
           value={sort}
           aria-label={t('invoices.sort')}
           onChange={e => setParam('sort', e.target.value)}
-          className="h-9 rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+          className="h-9 rounded-lg border border-border bg-card px-2 text-sm text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           {SORT_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
@@ -315,31 +319,31 @@ export default function InvoicesPage() {
 
       {/* Expanded filters panel */}
       {showFilters && (
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/50">
+        <div className="rounded-xl border border-border bg-muted/40 p-4">
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-slate-500 dark:text-slate-400">{t('invoices.filterIssuedFrom')}</label>
+              <label className="text-xs font-medium text-muted-foreground">{t('invoices.filterIssuedFrom')}</label>
               <input type="date" value={dateFrom} onChange={e => setParam('from', e.target.value)}
-                className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200" />
+                className="h-8 rounded-lg border border-border bg-card px-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-slate-500 dark:text-slate-400">{t('invoices.filterIssuedTo')}</label>
+              <label className="text-xs font-medium text-muted-foreground">{t('invoices.filterIssuedTo')}</label>
               <input type="date" value={dateTo} onChange={e => setParam('to', e.target.value)}
-                className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200" />
+                className="h-8 rounded-lg border border-border bg-card px-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-slate-500 dark:text-slate-400">{t('invoices.filterMinAmount')}</label>
+              <label className="text-xs font-medium text-muted-foreground">{t('invoices.filterMinAmount')}</label>
               <input type="number" min="0" step="0.01" value={minTotal} onChange={e => setParam('min', e.target.value)} placeholder="0.00"
-                className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200" />
+                className="h-8 rounded-lg border border-border bg-card px-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-slate-500 dark:text-slate-400">{t('invoices.filterMaxAmount')}</label>
+              <label className="text-xs font-medium text-muted-foreground">{t('invoices.filterMaxAmount')}</label>
               <input type="number" min="0" step="0.01" value={maxTotal} onChange={e => setParam('max', e.target.value)} placeholder="∞"
-                className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200" />
+                className="h-8 rounded-lg border border-border bg-card px-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
             </div>
           </div>
           {hasActiveFilters && (
-            <button onClick={clearAll} className="mt-3 flex items-center gap-1 text-xs text-slate-500 hover:text-red-500 transition-colors">
+            <button onClick={clearAll} className="mt-3 flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive transition-colors">
               <X className="h-3 w-3" /> {t('common.clearAllFilters')}
             </button>
           )}
@@ -365,15 +369,17 @@ export default function InvoicesPage() {
           <>
             {/* Desktop ledger */}
             <div className="hidden overflow-x-auto sm:block">
-              {[...grouped.entries()].map(([month, monthRows]) => (
-                <div key={month}>
-                  <p
-                    data-testid={`invoice-group-${month}`}
-                    className="bg-muted/50 px-5 py-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground"
-                  >
-                    {new Date(`${month}-01T12:00:00Z`).toLocaleDateString(i18n.language, { month: 'long', year: 'numeric' })}
-                  </p>
-                  {monthRows.map((row) => {
+              {sections.map((section) => (
+                <div key={section.key}>
+                  {section.group && (
+                    <p
+                      data-testid={section.group}
+                      className="bg-muted/50 px-5 py-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground"
+                    >
+                      {new Date(`${section.key}-01T12:00:00Z`).toLocaleDateString(i18n.language, { month: 'long', year: 'numeric' })}
+                    </p>
+                  )}
+                  {section.rows.map((row) => {
                     const inv = row.original;
                     const selected = row.getIsSelected();
                     return (
@@ -525,7 +531,7 @@ export default function InvoicesPage() {
         <p className="text-sm text-muted-foreground mb-5">{t('invoices.deleteConfirm')}</p>
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={() => setDeleteId(null)}>{t('common.cancel')}</Button>
-          <Button variant="destructive" disabled={deleteMutation.isPending} onClick={() => deleteId !== null && deleteMutation.mutate(deleteId)}>
+          <Button data-testid="invoice-delete-confirm" variant="destructive" disabled={deleteMutation.isPending} onClick={() => deleteId !== null && deleteMutation.mutate(deleteId)}>
             {t('common.delete')}
           </Button>
         </div>

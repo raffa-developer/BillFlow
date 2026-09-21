@@ -56,14 +56,18 @@ export function AppShell({ children }: { children: ReactNode }) {
         return;
       }
       if (e.key === 'Escape') {
+        const focusInNav = navRef.current?.contains(document.activeElement) ?? false;
         setPinned(null);
         setPeek(null);
         setCommandOpen(false);
+        if (focusInNav) {
+          document.querySelector<HTMLElement>(`[data-testid="nav-rail-${lastSection}"]`)?.focus();
+        }
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  }, [lastSection]);
 
   useEffect(() => {
     return () => {

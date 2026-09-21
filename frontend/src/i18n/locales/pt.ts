@@ -79,7 +79,7 @@ const pt: Translations = {
     paidRate: 'Taxa de pagamento',
     noPayments: 'Nenhum pagamento registado ainda.',
     noInvoices: 'Nenhuma fatura ainda.',
-    createFirst: 'Criar primeira fatura',
+    createFirst: 'Crie a sua primeira fatura',
   },
   clients: {
     title: 'Clientes',

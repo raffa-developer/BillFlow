@@ -168,7 +168,7 @@ async function run() {
   check('bulk bar appears on selection', await page.getByTestId('bulk-bar').isVisible());
   await page.getByTestId('invoice-select-page').click();
   await page.waitForTimeout(200);
-  check('select-all selects the page', (await page.locator('[data-testid^="invoice-select-"]:checked').count()) > 1);
+  check('select-all selects the page', (await page.locator('[data-testid^="invoice-select-"]:not([data-testid="invoice-select-page"]):checked').count()) > 1);
   await page.keyboard.press('Escape');
   await firstLedgerRow.getByRole('link').first().focus();
   await page.keyboard.press('Enter');
@@ -177,7 +177,20 @@ async function run() {
   await goto('/invoices');
   await page.locator('[data-testid^="invoice-delete-"]').first().click();
   await page.waitForTimeout(300);
-  check('row delete opens the confirm modal', await page.locator('button:has-text("Delete")').count() > 0);
+  check('row delete opens the confirm modal', await page.getByTestId('invoice-delete-confirm').isVisible());
+
+  await goto('/invoices?sort=total_asc');
+  check('flat ledger for amount sort', (await page.locator('[data-testid^="invoice-group-"]').count()) === 0);
+  const rowIds = await page.locator('[data-testid^="invoice-row-"]').evaluateAll((els) =>
+    els.map((el) => Number(el.getAttribute('data-testid').replace('invoice-row-', ''))));
+  const apiTotals = await page.evaluate(async () => {
+    const res = await fetch('/api/invoices', { headers: { Authorization: 'Bearer ' + localStorage.getItem('token') } });
+    const body = await res.json();
+    return Object.fromEntries(body.invoices.map((i) => [i.id, parseFloat(i.total)]));
+  });
+  const monotonic = rowIds.every((id, idx) => idx === 0 || apiTotals[rowIds[idx - 1]] <= apiTotals[id]);
+  check('amount sort is monotonic on screen', monotonic);
+  await goto('/invoices');
 
   if (WANT_AXE) {
     await goto('/');

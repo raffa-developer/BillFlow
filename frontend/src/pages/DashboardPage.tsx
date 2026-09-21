@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { clientsApi, productsApi, invoicesApi } from '../lib/api';
+import { invoicesApi } from '../lib/api';
 import { Card } from '@/components/ui/card';
 import { StatusBadge } from '@/components/ui/BadgeLegacy';
 import { cn } from '@/lib/utils';
@@ -82,8 +82,6 @@ export default function DashboardPage() {
   const { formatAmount } = useCurrency();
   const [period, setPeriod] = useState<Period>('month');
 
-  useQuery({ queryKey: ['clients'],  queryFn: () => clientsApi.list() });
-  useQuery({ queryKey: ['products'], queryFn: () => productsApi.list() });
   const { data: invoicesData } = useQuery({ queryKey: ['invoices'], queryFn: () => invoicesApi.list() });
 
   const invoices = invoicesData?.data.invoices ?? [];
@@ -129,7 +127,7 @@ export default function DashboardPage() {
               onClick={() => setPeriod(p)}
               className={cn(
                 'rounded-md px-3 py-1.5 text-xs font-semibold transition-colors',
-                period === p ? 'bg-primary text-primary-foreground' : 'text-foreground'
+                period === p ? 'bg-primary text-primary-foreground' : 'text-foreground hover:bg-muted'
               )}
             >
               {t(`dashboard.period${p.charAt(0).toUpperCase() + p.slice(1)}`)}
@@ -142,26 +140,32 @@ export default function DashboardPage() {
         <Card data-testid="dashboard-hero-revenue" className="lg:col-span-3 p-5">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('dashboard.revenue')}</p>
           <p className="font-display mt-1 text-3xl font-bold tracking-tight text-foreground">{formatAmount(revenue)}</p>
-          <div className="mt-4 h-40">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData}>
-                <defs>
-                  <linearGradient id="revenueFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.35} />
-                    <stop offset="100%" stopColor="var(--primary)" stopOpacity={0.02} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} width={56} />
-                <Tooltip
-                  formatter={(v) => formatAmount(Number(v))}
-                  contentStyle={{ background: 'var(--popover)', border: '1px solid var(--border)', borderRadius: 10, fontSize: 12 }}
-                />
-                <Area type="monotone" dataKey="total" stroke="var(--primary)" strokeWidth={2.5} fill="url(#revenueFill)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+          {paidCount > 0 ? (
+            <div className="mt-4 h-40">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData}>
+                  <defs>
+                    <linearGradient id="revenueFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.35} />
+                      <stop offset="100%" stopColor="var(--primary)" stopOpacity={0.02} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                  <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} width={56} />
+                  <Tooltip
+                    formatter={(v) => formatAmount(Number(v))}
+                    contentStyle={{ background: 'var(--popover)', border: '1px solid var(--border)', borderRadius: 10, fontSize: 12 }}
+                  />
+                  <Area type="monotone" dataKey="total" stroke="var(--primary)" strokeWidth={2.5} fill="url(#revenueFill)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="mt-4 flex h-40 items-center justify-center">
+              <p className="text-sm text-muted-foreground">{t('dashboard.noPayments')}</p>
+            </div>
+          )}
         </Card>
 
         <div className="flex flex-col gap-4 lg:col-span-2">
@@ -171,7 +175,7 @@ export default function DashboardPage() {
           </Card>
           <Card data-testid="dashboard-stat-paid" className="p-5">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('dashboard.paidRate')}</p>
-            <p className="font-display mt-1 text-2xl font-bold tracking-tight text-accent-foreground dark:text-accent">
+            <p className="font-display mt-1 text-2xl font-bold tracking-tight text-foreground dark:text-accent">
               {collectionRate}%
             </p>
           </Card>
@@ -202,20 +206,27 @@ export default function DashboardPage() {
             <Link to="/invoices" className="text-xs font-semibold text-primary hover:underline">{t('dashboard.viewAll')}</Link>
           </div>
           <div className="mt-3">
-            {invoices.slice(0, 6).map((inv) => (
-              <Link
-                key={inv.id}
-                to={`/invoices/${inv.id}`}
-                className="flex items-center gap-3 border-b border-border py-2.5 last:border-b-0 hover:bg-muted/50"
-              >
-                <span className="font-mono text-xs font-bold text-foreground">{inv.number}</span>
-                <span className="truncate text-xs text-muted-foreground">{inv.client.name}</span>
-                <StatusBadge status={inv.status} className="ml-auto shrink-0" />
-                <span className="w-24 shrink-0 text-right font-mono text-xs font-bold tabular-nums text-foreground">
-                  {formatAmount(parseFloat(inv.total))}
-                </span>
-              </Link>
-            ))}
+            {invoices.length === 0 ? (
+              <div className="flex flex-col items-center gap-2 py-8 text-muted-foreground">
+                <p className="text-sm">{t('dashboard.noInvoices')}</p>
+                <Link to="/invoices/new" className="text-xs font-semibold text-primary hover:underline">{t('dashboard.createFirst')}</Link>
+              </div>
+            ) : (
+              invoices.slice(0, 6).map((inv) => (
+                <Link
+                  key={inv.id}
+                  to={`/invoices/${inv.id}`}
+                  className="flex items-center gap-3 border-b border-border py-2.5 last:border-b-0 hover:bg-muted/50"
+                >
+                  <span className="font-mono text-xs font-bold text-foreground">{inv.number}</span>
+                  <span className="truncate text-xs text-muted-foreground">{inv.client.name}</span>
+                  <StatusBadge status={inv.status} className="ml-auto shrink-0" />
+                  <span className="w-24 shrink-0 text-right font-mono text-xs font-bold tabular-nums text-foreground">
+                    {formatAmount(parseFloat(inv.total))}
+                  </span>
+                </Link>
+              ))
+            )}
           </div>
         </Card>
       </div>
