@@ -1,0 +1,1 @@
+export const USER_SELECT = `id, email, "createdAt", "companyName", "companyAddress", "companyVat", "companyEmail", "companyPhone", "companyLogoUrl", "currency", "baseCurrency", "currencyRate", "defaultTaxRate", "defaultPaymentDays", "invoicePrefix"`;

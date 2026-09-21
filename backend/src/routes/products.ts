@@ -5,13 +5,14 @@ import { requireAuth } from "../middleware/auth";
 import { validateBody } from "../middleware/validate";
 import { AppError } from "../utils/errors";
 import { parseIdParam } from "../utils/params";
+import { getUserCurrency, toBase } from "../utils/currency";
 
 export const productsRouter = Router();
 productsRouter.use(requireAuth);
 
 const createProductSchema = z.object({
   name: z.string().min(1).max(200),
-  price: z.coerce.number().positive(),
+  price: z.coerce.number().positive().finite().max(9_999_999_999),
   description: z.string().min(1).max(500).optional(),
 });
 
@@ -27,9 +28,10 @@ productsRouter.get("/", async (req, res, next) => {
   try {
     const { rows } = await pool.query(
       `SELECT p.id, p."userId", p.name, p.price, p.description,
-              COUNT(ii.id)::int AS "invoiceCount"
+              COUNT(ii.id) FILTER (WHERE inv."userId" = p."userId")::int AS "invoiceCount"
        FROM "Product" p
        LEFT JOIN "InvoiceItem" ii ON ii."productId" = p.id
+       LEFT JOIN "Invoice" inv ON inv.id = ii."invoiceId"
        WHERE p."userId" = $1
        GROUP BY p.id
        ORDER BY p.id DESC`,
@@ -44,11 +46,12 @@ productsRouter.get("/", async (req, res, next) => {
 productsRouter.post("/", validateBody(createProductSchema), async (req, res, next) => {
   try {
     const body = req.body as z.infer<typeof createProductSchema>;
+    const { rate } = await getUserCurrency(req.user!.id);
     const { rows: [product] } = await pool.query(
       `INSERT INTO "Product" ("userId", name, price, "basePrice", description)
-       VALUES ($1, $2, $3, $3, $4)
+       VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
-      [req.user!.id, body.name, body.price, body.description ?? null]
+      [req.user!.id, body.name, body.price, toBase(body.price, rate), body.description ?? null]
     );
     return res.status(201).json({ product });
   } catch (err) {
@@ -61,6 +64,7 @@ productsRouter.put("/:id", validateBody(updateProductSchema), async (req, res, n
     const id = parseIdParam(req.params.id);
     const userId = req.user!.id;
     const body = req.body as z.infer<typeof updateProductSchema>;
+    const { rate } = await getUserCurrency(userId);
 
     const fields: string[] = [];
     const values: unknown[] = [];
@@ -70,7 +74,7 @@ productsRouter.put("/:id", validateBody(updateProductSchema), async (req, res, n
         values.push(body[col]);
         if (PRODUCT_BASE_SYNC.has(col)) {
           fields.push(`base${col.charAt(0).toUpperCase() + col.slice(1)}`);
-          values.push(body[col]);
+          values.push(toBase(body[col] as number, rate));
         }
       }
     }

@@ -11,6 +11,13 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
     return res.status(err.statusCode).json({ message: err.message });
   }
 
+  // Express/body-parser client errors (e.g. malformed JSON: status 400)
+  const clientStatus = (err as { statusCode?: number; status?: number } | null)?.statusCode
+    ?? (err as { status?: number } | null)?.status;
+  if (typeof clientStatus === "number" && clientStatus >= 400 && clientStatus < 500) {
+    return res.status(clientStatus).json({ message: "Invalid request" });
+  }
+
   console.error(err);
   return res.status(500).json({ message: "Internal server error" });
 }

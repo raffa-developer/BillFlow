@@ -7,8 +7,11 @@ import { validateBody } from "../middleware/validate";
 import { AppError } from "../utils/errors";
 import { parseIdParam } from "../utils/params";
 import { calculateInvoiceTotals, formatInvoiceNumber } from "../utils/invoiceMath";
+import { getUserCurrency, toBase } from "../utils/currency";
 import { renderInvoicePDF } from "../services/pdf";
 import { sendEmail } from "../services/email";
+import { fetchLogoBuffer } from "../utils/logo";
+import { safeFilename } from "../utils/filename";
 import { env } from "../config/env";
 
 export const invoicesRouter = Router();
@@ -16,8 +19,8 @@ export const invoicesRouter = Router();
 const itemSchema = z.object({
   productId: z.number().int().positive().optional(),
   description: z.string().min(1).max(500),
-  quantity: z.number().int().positive(),
-  price: z.number().nonnegative(),
+  quantity: z.number().int().positive().max(2_000_000_000),
+  price: z.number().nonnegative().finite().max(9_999_999_999),
 });
 
 const discountTypeSchema = z.enum(["NONE", "PERCENT", "FIXED"]).default("NONE");
@@ -28,8 +31,8 @@ const createInvoiceSchema = z.object({
   dueDate: z.string().datetime(),
   items: z.array(itemSchema).min(1, "Invoice must have at least one item"),
   discountType: discountTypeSchema.optional(),
-  discountValue: z.number().nonnegative().optional(),
-  taxRate: z.number().min(0).max(100).optional(),
+  discountValue: z.number().nonnegative().finite().max(9_999_999_999).optional(),
+  taxRate: z.number().min(0).max(100).finite().optional(),
   notes: z.string().max(2000).optional(),
 }).refine(d => new Date(d.dueDate) >= new Date(d.dateIssued), {
   message: "Due date cannot be before issue date",
@@ -41,12 +44,29 @@ const updateInvoiceSchema = z.object({
   dueDate: z.string().datetime().optional(),
   items: z.array(itemSchema).min(1).optional(),
   discountType: discountTypeSchema.optional(),
-  discountValue: z.number().nonnegative().optional(),
-  taxRate: z.number().min(0).max(100).optional(),
+  discountValue: z.number().nonnegative().finite().max(9_999_999_999).optional(),
+  taxRate: z.number().min(0).max(100).finite().optional(),
   notes: z.string().max(2000).optional(),
 }).refine((d) => Object.values(d).some((v) => v !== undefined), {
   message: "At least one field is required",
 });
+
+const MAX_BASE_AMOUNT = 999_999_999.999999;
+
+function assertDiscountBounds(discountType: "NONE" | "PERCENT" | "FIXED", discountValue: number, subtotal: number) {
+  if (discountType === "PERCENT" && discountValue > 100) {
+    throw new AppError("Discount cannot exceed 100%", 400);
+  }
+  if (discountType === "FIXED" && discountValue > subtotal) {
+    throw new AppError("Discount cannot exceed the subtotal", 400);
+  }
+}
+
+function assertAmountSupported(baseTotal: number) {
+  if (!Number.isFinite(baseTotal) || baseTotal > MAX_BASE_AMOUNT) {
+    throw new AppError("Invoice total exceeds the supported maximum", 400);
+  }
+}
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
@@ -57,12 +77,26 @@ async function fetchItems(invoiceId: number) {
                  THEN json_build_object('id', p.id, 'name', p.name)
                  ELSE NULL END AS product
      FROM "InvoiceItem" ii
-     LEFT JOIN "Product" p ON p.id = ii."productId"
+     JOIN "Invoice" inv ON inv.id = ii."invoiceId"
+     LEFT JOIN "Product" p ON p.id = ii."productId" AND p."userId" = inv."userId"
      WHERE ii."invoiceId" = $1
      ORDER BY ii.id`,
     [invoiceId]
   );
   return rows;
+}
+
+async function assertProductsOwned(userId: number, items: { productId?: number }[]) {
+  const ids = [...new Set(items.map((i) => i.productId).filter((id): id is number => id !== undefined))];
+  if (ids.length === 0) return;
+
+  const { rows } = await pool.query(
+    `SELECT id FROM "Product" WHERE id = ANY($1::int[]) AND "userId" = $2`,
+    [ids, userId]
+  );
+  const owned = new Set(rows.map((r: { id: number }) => r.id));
+  const missing = ids.filter((id) => !owned.has(id));
+  if (missing.length > 0) throw new AppError("Product not found", 404);
 }
 
 async function fetchItemsBulk(invoiceIds: number[]) {
@@ -97,21 +131,6 @@ async function fetchInvoiceForPdf(id: number, byField: "id" | "publicToken", val
   if (!invoice) return null;
   invoice.items = await fetchItems(invoice.id);
   return invoice;
-}
-
-async function fetchLogoBuffer(url: string | null | undefined): Promise<Buffer | null> {
-  if (!url) return null;
-  try {
-    if (url.startsWith("data:")) {
-      const base64 = url.split(",")[1];
-      return base64 ? Buffer.from(base64, "base64") : null;
-    }
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    return Buffer.from(await res.arrayBuffer());
-  } catch {
-    return null;
-  }
 }
 
 // ── routes ─────────────────────────────────────────────────────────────────
@@ -223,10 +242,20 @@ invoicesRouter.post("/", requireAuth, validateBody(createInvoiceSchema), async (
     );
     if (!client) throw new AppError("Client not found", 404);
 
+    await assertProductsOwned(userId, body.items);
+
     const discountType = body.discountType ?? "NONE";
-    const discountValue = body.discountValue ?? 0;
+    const discountValue = discountType === "NONE" ? 0 : body.discountValue ?? 0;
     const taxRate = body.taxRate ?? 0;
     const { subtotal, taxAmount, total } = calculateInvoiceTotals({ items: body.items, discountType, discountValue, taxRate });
+    assertDiscountBounds(discountType, discountValue, subtotal);
+
+    const { rate } = await getUserCurrency(userId);
+    const baseSubtotal = toBase(subtotal, rate);
+    const baseDiscountValue = discountType === "FIXED" ? toBase(discountValue, rate) : discountValue;
+    const baseTaxAmount = toBase(taxAmount, rate);
+    const baseTotal = toBase(total, rate);
+    assertAmountSupported(baseTotal);
 
     const db = await pool.connect();
     let invoiceId: number;
@@ -246,18 +275,19 @@ invoicesRouter.post("/", requireAuth, validateBody(createInvoiceSchema), async (
             "discountType", "discountValue", "baseDiscountValue",
             "taxRate", "taxAmount", "baseTaxAmount",
             total, "baseTotal", notes)
-         VALUES ($1,$2,$3,$4,$5,$6,$6,$7::\"DiscountType\",$8,$8,$9,$10,$10,$11,$11,$12)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8::"DiscountType",$9,$10,$11,$12,$13,$14,$15,$16)
          RETURNING id`,
         [userId, body.clientId, number, new Date(body.dateIssued), new Date(body.dueDate),
-         subtotal, discountType, discountValue, taxRate, taxAmount, total, body.notes ?? null]
+         subtotal, baseSubtotal, discountType, discountValue, baseDiscountValue,
+         taxRate, taxAmount, baseTaxAmount, total, baseTotal, body.notes ?? null]
       );
       invoiceId = inv.id;
 
       for (const item of body.items) {
         await db.query(
           `INSERT INTO "InvoiceItem" ("invoiceId", "productId", description, quantity, price, "basePrice")
-           VALUES ($1,$2,$3,$4,$5,$5)`,
-          [invoiceId, item.productId ?? null, item.description, item.quantity, item.price]
+           VALUES ($1,$2,$3,$4,$5,$6)`,
+          [invoiceId, item.productId ?? null, item.description, item.quantity, item.price, toBase(item.price, rate)]
         );
       }
 
@@ -288,11 +318,18 @@ invoicesRouter.put("/:id", requireAuth, validateBody(updateInvoiceSchema), async
     const body = req.body as z.infer<typeof updateInvoiceSchema>;
 
     const { rows: [existing] } = await pool.query(
-      `SELECT id, "discountType", "discountValue", "taxRate" FROM "Invoice" WHERE id = $1 AND "userId" = $2`,
+      `SELECT id, "discountType", "discountValue", "taxRate", "dateIssued" FROM "Invoice" WHERE id = $1 AND "userId" = $2`,
       [id, userId]
     );
     if (!existing) throw new AppError("Invoice not found", 404);
 
+    if (body.dueDate !== undefined && new Date(body.dueDate) < new Date(existing.dateIssued)) {
+      throw new AppError("Due date cannot be before issue date", 400);
+    }
+
+    if (body.items) await assertProductsOwned(userId, body.items);
+
+    const { rate } = await getUserCurrency(userId);
     const db = await pool.connect();
     try {
       await db.query("BEGIN");
@@ -307,19 +344,23 @@ invoicesRouter.put("/:id", requireAuth, validateBody(updateInvoiceSchema), async
       }
 
       const discountType = body.discountType ?? existing.discountType;
-      const discountValue = body.discountValue ?? Number(existing.discountValue);
+      const discountValue = discountType === "NONE" ? 0 : body.discountValue ?? Number(existing.discountValue);
       const taxRate = body.taxRate ?? Number(existing.taxRate);
       const recalc = body.items !== undefined || body.discountType !== undefined
         || body.discountValue !== undefined || body.taxRate !== undefined;
       const { subtotal, taxAmount, total } = calculateInvoiceTotals({ items: currentItems, discountType, discountValue, taxRate });
+      if (recalc) {
+        assertDiscountBounds(discountType, discountValue, subtotal);
+        assertAmountSupported(toBase(total, rate));
+      }
 
       if (body.items) {
         await db.query(`DELETE FROM "InvoiceItem" WHERE "invoiceId" = $1`, [id]);
         for (const item of body.items) {
           await db.query(
             `INSERT INTO "InvoiceItem" ("invoiceId", "productId", description, quantity, price, "basePrice")
-             VALUES ($1,$2,$3,$4,$5,$5)`,
-            [id, item.productId ?? null, item.description, item.quantity, item.price]
+             VALUES ($1,$2,$3,$4,$5,$6)`,
+            [id, item.productId ?? null, item.description, item.quantity, item.price, toBase(item.price, rate)]
           );
         }
       }
@@ -334,14 +375,15 @@ invoicesRouter.put("/:id", requireAuth, validateBody(updateInvoiceSchema), async
       if (body.taxRate !== undefined) { sets.push(`"taxRate" = $${vals.push(taxRate)}`); }
       if (recalc) {
         sets.push(`subtotal = $${vals.push(subtotal)}`);
-        sets.push(`"baseSubtotal" = $${vals.push(subtotal)}`);
+        sets.push(`"baseSubtotal" = $${vals.push(toBase(subtotal, rate))}`);
         sets.push(`"taxAmount" = $${vals.push(taxAmount)}`);
-        sets.push(`"baseTaxAmount" = $${vals.push(taxAmount)}`);
+        sets.push(`"baseTaxAmount" = $${vals.push(toBase(taxAmount, rate))}`);
         sets.push(`total = $${vals.push(total)}`);
-        sets.push(`"baseTotal" = $${vals.push(total)}`);
+        sets.push(`"baseTotal" = $${vals.push(toBase(total, rate))}`);
       }
-      if (body.discountValue !== undefined) {
-        sets.push(`"baseDiscountValue" = $${vals.push(discountValue)}`);
+      if (body.discountValue !== undefined || body.discountType !== undefined) {
+        const baseDiscountValue = discountType === "FIXED" ? toBase(discountValue, rate) : discountValue;
+        sets.push(`"baseDiscountValue" = $${vals.push(baseDiscountValue)}`);
       }
       vals.push(id);
       await db.query(`UPDATE "Invoice" SET ${sets.join(", ")} WHERE id = $${vals.length}`, vals);
@@ -374,7 +416,7 @@ invoicesRouter.get("/:id/pdf", requireAuth, async (req, res, next) => {
 
     const logoBuffer = await fetchLogoBuffer(invoice.user.companyLogoUrl);
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `inline; filename="${invoice.number}.pdf"`);
+    res.setHeader("Content-Disposition", `inline; filename="${safeFilename(invoice.number)}.pdf"`);
     renderInvoicePDF(invoice, logoBuffer).pipe(res);
   } catch (err) {
     next(err);
@@ -434,7 +476,7 @@ invoicesRouter.post("/:id/send", requireAuth, validateBody(sendSchema), async (r
 });
 
 const paymentSchema = z.object({
-  amount: z.number().positive().optional(),
+  amount: z.number().positive().finite().max(9_999_999_999).optional(),
   paidAt: z.string().datetime().optional(),
   method: z.enum(["cash", "bank_transfer", "card", "check", "other"]).default("other"),
   reference: z.string().max(200).optional(),
@@ -472,21 +514,48 @@ invoicesRouter.post("/:id/payments", requireAuth, validateBody(paymentSchema), a
     );
     if (!invoice) throw new AppError("Invoice not found", 404);
 
-    const amount = body.amount ?? Number(invoice.total);
-    const paidAt = body.paidAt ? new Date(body.paidAt) : new Date();
-
-    const { rows: [payment] } = await pool.query(
-      `INSERT INTO "Payment" ("invoiceId", amount, "paidAt", method, reference)
-       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [id, amount, paidAt, body.method, body.reference ?? null]
-    );
-
-    await pool.query(
-      `UPDATE "Invoice" SET status = 'PAID'::"InvoiceStatus" WHERE id = $1`,
+    const total = Number(invoice.total);
+    const { rate } = await getUserCurrency(userId);
+    const { rows: [{ paid }] } = await pool.query(
+      `SELECT COALESCE(SUM(amount), 0)::numeric AS paid FROM "Payment" WHERE "invoiceId" = $1`,
       [id]
     );
+    const paidSoFar = Number(paid);
+    const outstanding = Math.round(Math.max(0, total - paidSoFar) * 100) / 100;
+    if (outstanding <= 0) throw new AppError("Invoice is already fully paid", 400);
 
-    res.status(201).json({ payment });
+    const amount = body.amount ?? outstanding;
+    if (amount > outstanding + 0.005) {
+      throw new AppError("Payment exceeds the outstanding balance", 400);
+    }
+
+    const paidAt = body.paidAt ? new Date(body.paidAt) : new Date();
+
+    const db = await pool.connect();
+    try {
+      await db.query("BEGIN");
+
+      const { rows: [payment] } = await db.query(
+        `INSERT INTO "Payment" ("invoiceId", amount, "baseAmount", "paidAt", method, reference)
+         VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+        [id, amount, toBase(amount, rate), paidAt, body.method, body.reference ?? null]
+      );
+
+      if (paidSoFar + amount >= total - 0.005) {
+        await db.query(
+          `UPDATE "Invoice" SET status = 'PAID'::"InvoiceStatus" WHERE id = $1`,
+          [id]
+        );
+      }
+
+      await db.query("COMMIT");
+      res.status(201).json({ payment });
+    } catch (err) {
+      await db.query("ROLLBACK");
+      throw err;
+    } finally {
+      db.release();
+    }
   } catch (err) {
     next(err);
   }

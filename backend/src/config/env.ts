@@ -11,6 +11,8 @@ const envSchema = z.object({
   BCRYPT_SALT_ROUNDS: z.coerce.number().int().min(8).max(15).default(10),
   // Public URL for the frontend (used in email links).
   APP_URL: z.string().url().default("http://localhost:5173"),
+  // Comma-separated list of allowed CORS origins. Defaults to APP_URL.
+  CORS_ORIGINS: z.string().optional(),
   // Email — optional. When SMTP_HOST is unset, sending is mocked to console.
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.coerce.number().int().optional(),

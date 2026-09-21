@@ -3,6 +3,8 @@ import { env } from "../config/env";
 
 export type JwtPayload = {
   userId: number;
+  /** Token version — must match User.tokenVersion; bumped on password change/reset. */
+  tv?: number;
 };
 
 export function signToken(payload: JwtPayload): string {

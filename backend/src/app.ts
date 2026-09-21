@@ -10,11 +10,17 @@ import { meRouter } from "./routes/me";
 import { productsRouter } from "./routes/products";
 import { publicInvoicesRouter } from "./routes/publicInvoices";
 import { errorHandler } from "./middleware/errorHandler";
+import { env } from "./config/env";
 
 export const app = express();
 
+const allowedOrigins = (env.CORS_ORIGINS ?? env.APP_URL)
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 app.use(helmet());
-app.use(cors({ origin: true, credentials: true }));
+app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(express.json());
 app.use(morgan("dev"));
 

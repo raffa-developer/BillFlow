@@ -1,5 +1,6 @@
 import PDFDocument from "pdfkit";
 import { Readable } from "node:stream";
+import { discountAmountFor } from "../utils/invoiceMath";
 
 interface InvoiceItem {
   id: number; invoiceId: number; productId: number | null;
@@ -193,7 +194,7 @@ export function renderInvoicePDF(invoice: InvoiceWithRelations, logoBuffer?: Buf
   const discountValue = Number(invoice.discountValue);
   if (invoice.discountType !== "NONE" && discountValue > 0) {
     const subtotal = Number(invoice.subtotal);
-    const dAmt = invoice.discountType === "PERCENT" ? (subtotal * discountValue) / 100 : discountValue;
+    const dAmt = discountAmountFor(subtotal, invoice.discountType as "PERCENT" | "FIXED", discountValue);
     const lbl = invoice.discountType === "PERCENT" ? `Discount (${discountValue}%)` : "Discount";
     row(lbl, `-${fmt(dAmt)}`);
   }

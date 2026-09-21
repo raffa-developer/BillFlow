@@ -11,9 +11,9 @@ clientsRouter.use(requireAuth);
 
 const createClientSchema = z.object({
   name: z.string().min(1).max(200),
-  email: z.string().email().optional(),
-  phone: z.string().min(3).max(50).optional(),
-  address: z.string().min(1).max(500).optional(),
+  email: z.string().email().nullable().optional(),
+  phone: z.string().min(3).max(50).nullable().optional(),
+  address: z.string().min(1).max(500).nullable().optional(),
 });
 
 const updateClientSchema = createClientSchema.partial().refine(

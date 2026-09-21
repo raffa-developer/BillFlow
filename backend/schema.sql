@@ -19,6 +19,9 @@ CREATE TABLE "User" (
   "companyLogoUrl" TEXT,
   "invoiceCounter"      INTEGER      NOT NULL DEFAULT 0,
   "currency"            TEXT         NOT NULL DEFAULT 'EUR',
+  "baseCurrency"        TEXT         NOT NULL DEFAULT 'EUR',
+  "currencyRate"        DECIMAL(18,8) NOT NULL DEFAULT 1,
+  "tokenVersion"        INTEGER      NOT NULL DEFAULT 0,
   "defaultTaxRate"      DECIMAL(5,2) NOT NULL DEFAULT 0,
   "defaultPaymentDays"  INTEGER      NOT NULL DEFAULT 30,
   "invoicePrefix"       TEXT         NOT NULL DEFAULT 'INV'
@@ -85,6 +88,7 @@ CREATE TABLE "Payment" (
   "id"        SERIAL          PRIMARY KEY,
   "invoiceId" INTEGER         NOT NULL REFERENCES "Invoice"("id") ON DELETE CASCADE,
   "amount"    DECIMAL(12, 2)  NOT NULL,
+  "baseAmount" DECIMAL(15,6)  NOT NULL,
   "paidAt"    TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
   "method"    TEXT            NOT NULL DEFAULT 'other',
   "reference" TEXT

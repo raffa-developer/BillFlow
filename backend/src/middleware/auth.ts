@@ -13,8 +13,8 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
 
   try {
     const payload = verifyToken(token);
-    const { rows } = await pool.query<{ id: number; email: string }>(
-      `SELECT id, email FROM "User" WHERE id = $1`,
+    const { rows } = await pool.query<{ id: number; email: string; tokenVersion: number }>(
+      `SELECT id, email, "tokenVersion" FROM "User" WHERE id = $1`,
       [payload.userId]
     );
 
@@ -22,7 +22,12 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
       return res.status(401).json({ message: "User not found" });
     }
 
-    req.user = rows[0];
+    // Reject tokens issued before the last password change/reset.
+    if ((payload.tv ?? 0) !== rows[0].tokenVersion) {
+      return res.status(401).json({ message: "Invalid token" });
+    }
+
+    req.user = { id: rows[0].id, email: rows[0].email };
     return next();
   } catch {
     return res.status(401).json({ message: "Invalid token" });
